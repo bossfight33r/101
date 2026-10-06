@@ -54,6 +54,9 @@ class ScheduleConfig(Strict):
     timezone: str = "Europe/Moscow"
     long_time: str = "18:00"  # HH:MM, локальное время канала
     shorts_interval_hours: float = Field(4.0, gt=0)
+    active_hours: str = Field(
+        "08:00-23:00", pattern=r"^\d{2}:\d{2}-\d{2}:\d{2}$"
+    )  # шортсы только в это окно
 
 
 class Channel(Strict):

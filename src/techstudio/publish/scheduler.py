@@ -32,6 +32,18 @@ def _at(d: date, hhmm: str, tz: ZoneInfo) -> datetime:
     return datetime.combine(d, time(h, m), tzinfo=tz)
 
 
+def _into_window(t: datetime, tz: ZoneInfo, start: str, end: str) -> datetime:
+    """Слот вне активных часов канала → начало окна (сегодня, если ещё рано; иначе завтра)."""
+    local = t.astimezone(tz)
+    day = local.date()
+    open_at, close_at = _at(day, start, tz), _at(day, end, tz)
+    if local < open_at:
+        return open_at.astimezone(UTC)
+    if local > close_at:
+        return _at(day + timedelta(days=1), start, tz).astimezone(UTC)
+    return t
+
+
 def plan(
     channel: Channel, existing: list[Publication], now: datetime, n_shorts: int
 ) -> tuple[datetime, list[datetime]]:
@@ -57,8 +69,10 @@ def plan(
     step = timedelta(hours=channel.schedule.shorts_interval_hours)
     out: list[datetime] = []
     t = long_at + step
+    win_start, win_end = channel.schedule.active_hours.split("-")
     for _ in range(n_shorts):
         for _ in range(MAX_DAYS * 24):
+            t = _into_window(t, tz, win_start, win_end)
             local_day = t.astimezone(tz).date()
             if shorts[local_day] < lim.shorts:
                 break

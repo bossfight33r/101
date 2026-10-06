@@ -360,3 +360,13 @@ def test_outro_has_end_screen_room(svc, topic):
     scenes = stages.service_scenes(script, "x", 10.0)
     assert scenes[-1].id == "outro" and scenes[-1].min_sec == 10.0
     assert scenes[0].id == "hook"
+
+
+def test_shorts_not_at_night(svc):
+    now = datetime(2026, 10, 6, 9, 0, tzinfo=MSK)
+    long_at, shorts = scheduler.plan(svc.channel, [], now, 3)
+    loc = [t.astimezone(MSK) for t in shorts]
+    assert loc[0] == datetime(2026, 10, 6, 22, 0, tzinfo=MSK)
+    assert loc[1] == datetime(2026, 10, 7, 8, 0, tzinfo=MSK)  # 02:00 → начало окна
+    assert loc[2] == datetime(2026, 10, 7, 12, 0, tzinfo=MSK)
+    assert all(8 <= t.hour <= 23 for t in loc)

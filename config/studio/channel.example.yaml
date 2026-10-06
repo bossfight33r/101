@@ -20,6 +20,7 @@ schedule:
   timezone: Europe/Moscow
   long_time: "18:00"
   shorts_interval_hours: 4
+  active_hours: "08:00-23:00"   # шортсы не публикуются ночью
 music_tracks: []               # только свои треки: data/studio/music/track.mp3
 music_volume: 0.12
 transition: cut                # cut | fade
