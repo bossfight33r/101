@@ -21,4 +21,6 @@
 - ClipFactory живёт в `bossfight33r/100`; здесь его аналоги — `src/techstudio/core/` (ADR 0001). Не ломать.
 - Production-промпты (`src/techstudio/prompts/`) автоматически не меняются; предложения — в файлы для ручного ревью.
 
+Облачные сессии: `.claude/hooks/session-start.sh` ставит venv и зависимости автоматически.
+
 Команды: `make setup`, `make test`, `make lint`, `.venv/bin/studio --help`, `.venv/bin/studio doctor`.
