@@ -1,0 +1,41 @@
+# Скопируй в channel.yaml (в .gitignore) и поправь под себя.
+id: techru
+name: "Tech без воды"
+language: ru
+voice_id: ru_dmitri
+account_id: yt_main            # токен: data/studio/secrets/yt_main.json (studio auth youtube)
+default_tags: [linux, сети, роутер, openwrt, python, автоматизация]
+description_footer: |
+  —
+  Telegram-канал: https://t.me/<YOUR_CHANNEL>
+  Партнёрские ссылки: <YOUR_AFFILIATE_LINKS>
+daily_limits:
+  long: 1
+  shorts: 3
+longform:
+  min_sec: 360
+  max_sec: 720
+words_per_minute: 140
+schedule:
+  timezone: Europe/Moscow
+  long_time: "18:00"
+  shorts_interval_hours: 4
+music_tracks: []               # только свои треки: data/studio/music/track.mp3
+music_volume: 0.12
+transition: cut                # cut | fade
+shorts_voice_hook: true
+short_candidates_min: 3
+short_candidates_max: 5
+style:
+  bg: "#0f172a"
+  fg: "#e2e8f0"
+  accent: "#22d3ee"
+  muted: "#94a3b8"
+  highlight_bg: "#334155"
+  # Шрифт обязательно с кириллицей. На Маке: /System/Library/Fonts/Supplemental/Arial.ttf
+  font: /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+  font_bold: /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+  mono_font: /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf
+  caption_font_name: DejaVu Sans
+  code_theme: monokai
+  terminal_theme: Dracula

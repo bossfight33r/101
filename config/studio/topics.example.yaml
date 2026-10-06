@@ -1,0 +1,23 @@
+# studio topic import config/studio/topics.example.yaml
+topics:
+  - id: openwrt-first-steps
+    title: "OpenWrt: первые 10 минут после прошивки"
+    audience_level: beginner
+    key_points:
+      - зайти по SSH и сменить пароль
+      - обновить список пакетов
+      - поставить LuCI на русском
+    must_show_commands:
+      - ssh root@192.168.1.1
+      - opkg update
+    notes: "Вывод с роутера — replay из data/studio/assets/replay/openwrt-first-steps/"
+  - id: linux-ss-vs-netstat
+    title: "ss вместо netstat: кто слушает порты"
+    audience_level: beginner
+    key_points: [ss -tulpn, фильтры по порту, почему netstat устарел]
+    must_show_commands: ["ss -tuln"]
+  - id: python-ping-sweep
+    title: "Python: проверяем, какие хосты живы в сети"
+    audience_level: intermediate
+    key_points: [subprocess и ping, параллельно через concurrent.futures, вывод таблицей]
+    must_show_commands: ["python3 sweep.py 192.168.1.0/24"]

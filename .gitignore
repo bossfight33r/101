@@ -1,0 +1,17 @@
+data/
+refs/
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+*.mp4
+*.wav
+*.mov
+*.mkv
+config/studio/channel.yaml
+config/studio/topics.yaml

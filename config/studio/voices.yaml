@@ -1,0 +1,27 @@
+# Голоса Piper: https://huggingface.co/rhasspy/piper-voices (ru_RU).
+# Скачать: см. docs/studio/runbook.md#piper
+default: ru_dmitri
+voices:
+  ru_dmitri:
+    engine: piper
+    model: data/studio/voices/ru_RU-dmitri-medium.onnx
+    length_scale: 1.0
+    sentence_silence: 0.25
+  ru_irina:
+    engine: piper
+    model: data/studio/voices/ru_RU-irina-medium.onnx
+    length_scale: 1.0
+# Только для текста TTS. Субтитры показывают исходное написание.
+pronunciation:
+  OpenWrt: "Оупэн-ВэРэТэ"
+  LuCI: "Люси"
+  SSH: "эс-эс-аш"
+  nginx: "энджин-икс"
+  Linux: "Линукс"
+  Python: "Пайтон"
+  Docker: "Докер"
+  DNS: "ди-эн-эс"
+  IP: "ай-пи"
+  Wi-Fi: "вай-фай"
+  sudo: "судо"
+  opkg: "о-пэ-кэ-гэ"
