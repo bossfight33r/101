@@ -91,6 +91,12 @@ class Size:
         return f"{self.w}x{self.h}"
 
 
+def concat_line(path: Path) -> str:
+    """Строка списка concat demuxer: кавычки в пути экранируются по правилам ffmpeg ('\\'')."""
+    quoted = Path(path).resolve().as_posix().replace("'", "'\\''")
+    return f"file '{quoted}'"
+
+
 def escape_filter_path(path: Path) -> str:
     """Путь для filtergraph (ass=, subtitles=): экранируем \\ : ' ,."""
     s = str(path)

@@ -232,3 +232,27 @@ def test_fade_transition_segment(tmp_path):
     from PIL import Image
 
     assert max(Image.open(frame).convert("L").getextrema()) < 60
+
+
+@needs_ffmpeg
+def test_concat_handles_quote_in_path(tmp_path):
+    d = tmp_path / "Босс's video"
+    d.mkdir()
+    a = longform.build_segment(
+        _color(d / "a.mp4", 320, 180, 1.0),
+        None,
+        d / "sa.mp4",
+        duration=1.0,
+        pause_before=0.3,
+        encoder=X264_FAST,
+    )
+    b = longform.build_segment(
+        _color(d / "b.mp4", 320, 180, 1.0),
+        None,
+        d / "sb.mp4",
+        duration=1.0,
+        pause_before=0.3,
+        encoder=X264_FAST,
+    )
+    out = longform.concat([a, b], d / "out.mp4")
+    assert probe.probe(out).duration == pytest.approx(2.0, abs=0.15)

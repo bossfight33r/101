@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -247,13 +248,26 @@ def _render_one(ctx: VideoCtx, scene, aspect: str) -> SceneRender:
     return result
 
 
+def _render_scene(ctx: VideoCtx, scene) -> dict:
+    """Обе ориентации одной сцены — последовательно (общий манифест сцены)."""
+    out = {(scene.id, "16x9"): _render_one(ctx, scene, "16x9")}
+    # 9:16 нужен только кандидатам в шортсы (ADR 0005)
+    if getattr(scene, "short_candidate", False):
+        out[(scene.id, "9x16")] = _render_one(ctx, scene, "9x16")
+    return out
+
+
 def run_visuals(ctx: VideoCtx) -> None:
+    """Сцены рендерятся параллельно (TS_RENDER_WORKERS): VHS в песочнице идёт почти в реальном времени."""
     compute_durations(ctx)
-    for scene in ctx.long_scenes:
-        ctx.renders[(scene.id, "16x9")] = _render_one(ctx, scene, "16x9")
-        # 9:16 нужен только кандидатам в шортсы (ADR 0005)
-        if getattr(scene, "short_candidate", False):
-            ctx.renders[(scene.id, "9x16")] = _render_one(ctx, scene, "9x16")
+    workers = max(1, ctx.svc.settings.render_workers)
+    if workers == 1:
+        results = [_render_scene(ctx, sc) for sc in ctx.long_scenes]
+    else:
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="render") as pool:
+            results = list(pool.map(lambda sc: _render_scene(ctx, sc), ctx.long_scenes))
+    for part in results:  # порядок сцен сохраняется
+        ctx.renders.update(part)
     for (sid, aspect), r in ctx.renders.items():
         ctx.warnings += [f"{sid} {aspect}: {w}" for w in r.warnings]
 

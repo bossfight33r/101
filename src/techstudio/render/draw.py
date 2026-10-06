@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from functools import lru_cache
 from pathlib import Path
 
@@ -59,9 +60,14 @@ def resolve_font(path: str) -> str:
     return path  # пусть упадёт с понятной ошибкой Pillow; doctor подскажет
 
 
-@lru_cache(maxsize=64)
-def font(path: str, size: int) -> ImageFont.FreeTypeFont:
+@lru_cache(maxsize=256)
+def _font(path: str, size: int, thread_id: int) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(resolve_font(path), size)
+
+
+def font(path: str, size: int) -> ImageFont.FreeTypeFont:
+    """FreeType-объекты не потокобезопасны: кеш свой у каждого потока рендера."""
+    return _font(path, size, threading.get_ident())
 
 
 def wrap(text: str, fnt: ImageFont.FreeTypeFont, max_width: int) -> list[str]:

@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     transcriber: Literal["faster_whisper", "mlx", "fake"] = "faster_whisper"
     whisper_model: str = "large-v3-turbo"
     renderers: Literal["auto", "real", "fake"] = "auto"
+    render_workers: int = 2  # сколько сцен рендерить параллельно
     allow_fake_publish: bool = False  # только для отладки: разрешить approve видео с fake-визуалами
     encoder: str = "auto"
 

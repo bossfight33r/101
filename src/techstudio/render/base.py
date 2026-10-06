@@ -73,9 +73,9 @@ def frames_to_video(
     lst = out.with_suffix(".frames.txt")
     lines = []
     for path, dur in frames:
-        lines.append(f"file '{path.resolve().as_posix()}'")
+        lines.append(ffmpeg.concat_line(path))
         lines.append(f"duration {max(dur, 1 / FPS):.3f}")
-    lines.append(f"file '{frames[-1][0].resolve().as_posix()}'")  # требование concat demuxer
+    lines.append(ffmpeg.concat_line(frames[-1][0]))  # требование concat demuxer
     lst.write_text("\n".join(lines) + "\n", encoding="utf-8")
     total = sum(max(d, 1 / FPS) for _, d in frames)
     ffmpeg.run(

@@ -61,9 +61,7 @@ def build_segment(
 
 def concat(segments: list[Path], out: Path) -> Path:
     lst = out.with_suffix(".concat.txt")
-    lst.write_text(
-        "".join(f"file '{p.resolve().as_posix()}'\n" for p in segments), encoding="utf-8"
-    )
+    lst.write_text("".join(ffmpeg.concat_line(p) + "\n" for p in segments), encoding="utf-8")
     ffmpeg.run(
         [
             "-f",
