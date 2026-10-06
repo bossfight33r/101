@@ -169,3 +169,14 @@ def test_split_text_keeps_lines():
     chunks = split_text(text, limit=500)
     assert all(len(c) <= 500 for c in chunks) and "\n".join(chunks) == text
     assert all(_balanced_html(c) for c in chunks)
+
+
+def test_regen_command_with_note(svc, topic):
+    script, _ = scripts.new_script(svc, topic.id)
+    replies, _ = logic.handle_command(
+        svc, "regen", [script.video_id, "code", "покороче", "и", "проще"]
+    )
+    assert "переписана" in replies[0].text
+    assert "покороче и проще" in svc.llm.calls[-1]["user"]
+    replies, _ = logic.handle_command(svc, "regen", [script.video_id])
+    assert replies[0].text.startswith("/regen")

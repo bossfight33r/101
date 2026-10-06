@@ -326,6 +326,12 @@ def handle_command(svc: Services, command: str, args: list[str]) -> tuple[list[R
             if rec.status == VideoStatus.final_review:
                 return final_gate(svc, target), None
             return script_gate(svc, target), None
+        if command == "regen":
+            if len(args) < 2:
+                return [Reply(text="/regen VIDEO_ID SCENE_ID пожелание")], None
+            note = " ".join(args[2:])
+            scripts.regenerate_scene(svc, target, args[1], note)
+            return [Reply(text=f"🔁 Сцена {args[1]} переписана."), *script_gate(svc, target)], None
         if command == "status":
             rec = svc.db.require_video(target)
             text = f"{rec.id}: {rec.status.value}, сценарий v{rec.script_version}"
@@ -340,7 +346,7 @@ def handle_command(svc: Services, command: str, args: list[str]) -> tuple[list[R
         return [Reply(text=f"⚠️ {type(e).__name__}: {str(e)[:500]}")], None
     return [
         Reply(
-            text="Команды: /studio /topics /new TOPIC /review VID /status VID /retry VID /publish VID"
+            text="Команды: /studio /topics /new TOPIC /review VID /regen VID SCENE пожелание /status VID /retry VID /publish VID"
         )
     ], None
 

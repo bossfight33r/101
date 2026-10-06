@@ -20,7 +20,7 @@ from techstudio.core import log
 from techstudio.services import Services
 
 _log = log.get("bot")
-COMMANDS = ("studio", "topics", "new", "review", "status", "retry", "publish")
+COMMANDS = ("studio", "topics", "new", "review", "regen", "status", "retry", "publish")
 TG_LIMIT = 4000
 
 
