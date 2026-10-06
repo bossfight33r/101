@@ -36,6 +36,6 @@ style:
   font: /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
   font_bold: /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
   mono_font: /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf
-  caption_font_name: DejaVu Sans
+  caption_font_name: ""         # пусто — семейство из font (для ASS-субтитров шортсов)
   code_theme: monokai
   terminal_theme: Dracula

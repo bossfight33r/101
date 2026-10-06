@@ -444,3 +444,23 @@ def test_files_must_reference_code_scene():
             replay_output_key="k",
             files={"x.py": "c"},
         )
+
+
+def test_missing_font_falls_back_to_cyrillic_font():
+    from techstudio.render import draw
+
+    real = draw.resolve_font("/System/Library/Fonts/Supplemental/Arial Bold.ttf")
+    assert "Bold" in real or "bold" in real.lower()
+    f = draw.font("/nonexistent/SomeMono.ttf", 30)
+    assert f.getmask("Ж").getbbox() is not None
+
+
+def test_sandbox_read_only_toggle(tmp_path):
+    from techstudio.sandbox.docker import SandboxLimits
+
+    on = DockerSandbox().build_args(tmp_path, ["/out/scene.tape"], network=False, name="x")
+    off = DockerSandbox(limits=SandboxLimits(read_only=False)).build_args(
+        tmp_path, ["/out/scene.tape"], network=False, name="x"
+    )
+    assert "--read-only" in on and "--read-only" not in off
+    assert off[off.index("--network") + 1] == "none" and "ALL" in off  # остальная изоляция на месте

@@ -29,6 +29,9 @@ class SandboxLimits:
     memory: str = "1g"
     pids: int = 256
     timeout: int = 300
+    read_only: bool = (
+        True  # rootfs только чтение (+ tmpfs /tmp и ~); выключить, если VHS/Chromium не стартует
+    )
 
 
 class DockerSandbox:
@@ -78,7 +81,7 @@ class DockerSandbox:
             lim.memory,
             "--pids-limit",
             str(lim.pids),
-            "--read-only",
+            *(["--read-only"] if lim.read_only else []),
             "--tmpfs",
             "/tmp:rw,size=256m",
             "--tmpfs",

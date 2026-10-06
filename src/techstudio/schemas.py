@@ -40,7 +40,7 @@ class ChannelStyle(Strict):
     font: str = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
     font_bold: str = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     mono_font: str = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
-    caption_font_name: str = "DejaVu Sans"
+    caption_font_name: str = ""  # пусто — семейство берётся из файла font
     code_theme: str = "monokai"
     terminal_theme: str = "Dracula"
 

@@ -117,13 +117,17 @@ def check_piper(s: Settings) -> list[Check]:
 def check_fonts(s: Settings) -> list[Check]:
     from PIL import ImageFont
 
+    from techstudio.render.draw import resolve_font
+
     out = []
     st = s.channel.style
     for label, path in (("шрифт", st.font), ("жирный", st.font_bold), ("моно", st.mono_font)):
+        real = resolve_font(path)
         try:
-            font = ImageFont.truetype(path, 40)
+            font = ImageFont.truetype(real, 40)
             ok = font.getlength("Жж") > 0 and font.getmask("Ж").getbbox() is not None
-            out.append(Check(f"{label} (кириллица)", ok, path))
+            detail = path if real == path else f"{path} нет → запасной {real}"
+            out.append(Check(f"{label} (кириллица)", ok, detail))
         except OSError:
             out.append(Check(f"{label} (кириллица)", False, path, "поправь style.* в channel.yaml"))
     return out

@@ -17,9 +17,51 @@ def rgb(hex_color: str) -> tuple[int, int, int]:
     return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
 
 
+# запасные шрифты с кириллицей: Linux (DejaVu/Liberation/Noto) и macOS
+FALLBACKS = {
+    "regular": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/Library/Fonts/Arial.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    ],
+    "bold": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+        "/Library/Fonts/Arial Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    ],
+    "mono": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+        "/System/Library/Fonts/Menlo.ttc",
+        "/System/Library/Fonts/Supplemental/Courier New.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+    ],
+}
+
+
+def _kind(path: str) -> str:
+    low = path.lower()
+    if "mono" in low or "menlo" in low or "courier" in low:
+        return "mono"
+    return "bold" if "bold" in low else "regular"
+
+
+@lru_cache(maxsize=32)
+def resolve_font(path: str) -> str:
+    """Путь из стиля канала; если файла нет — первый существующий запасной того же вида."""
+    if Path(path).exists():
+        return path
+    for candidate in FALLBACKS[_kind(path)]:
+        if Path(candidate).exists():
+            return candidate
+    return path  # пусть упадёт с понятной ошибкой Pillow; doctor подскажет
+
+
 @lru_cache(maxsize=64)
 def font(path: str, size: int) -> ImageFont.FreeTypeFont:
-    return ImageFont.truetype(path, size)
+    return ImageFont.truetype(resolve_font(path), size)
 
 
 def wrap(text: str, fnt: ImageFont.FreeTypeFont, max_width: int) -> list[str]:

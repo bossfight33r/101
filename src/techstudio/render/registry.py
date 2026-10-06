@@ -21,6 +21,7 @@ def build_sandbox(s) -> DockerSandbox:
             memory=s.sandbox_memory,
             pids=s.sandbox_pids,
             timeout=s.sandbox_timeout,
+            read_only=s.sandbox_read_only,
         ),
     )
 

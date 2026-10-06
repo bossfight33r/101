@@ -7,21 +7,29 @@ from pathlib import Path
 from techstudio.assemble import longform
 from techstudio.core import captions, ffmpeg
 from techstudio.core.encoder import AUDIO_ARGS, Encoder
+from techstudio.render.draw import resolve_font
 from techstudio.schemas import ChannelStyle, Word
 
 MAX_SHORT_SEC = 60.0
 ENDCARD_SEC = 2.0
 
 
+def caption_font(style: ChannelStyle) -> str:
+    """Имя семейства для ASS: явно из конфига или из файла style.font (с учётом запасного шрифта)."""
+    if style.caption_font_name:
+        return style.caption_font_name
+    from PIL import ImageFont
+
+    return ImageFont.truetype(resolve_font(style.font), 20).getname()[0]
+
+
 def burn(raw: Path, out: Path, words: list[Word], style: ChannelStyle, encoder: Encoder) -> Path:
     ass = out.with_name("captions.ass")
     ass.write_text(
-        captions.to_ass(
-            words, font=style.caption_font_name, color=style.fg, highlight=style.accent
-        ),
+        captions.to_ass(words, font=caption_font(style), color=style.fg, highlight=style.accent),
         encoding="utf-8",
     )
-    fonts_dir = Path(style.font).parent
+    fonts_dir = Path(resolve_font(style.font)).parent
     vf = f"ass={ffmpeg.escape_filter_path(ass)}:fontsdir={ffmpeg.escape_filter_path(fonts_dir)}"
     ffmpeg.run(
         [

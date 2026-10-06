@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     sandbox_memory: str = "1g"
     sandbox_pids: int = 256
     sandbox_timeout: int = 300
+    sandbox_read_only: bool = True
     mermaid_image: str = "minlag/mermaid-cli:latest"
     mermaid_bin: str = "mmdc"
     mermaid_puppeteer_config: str | None = (
