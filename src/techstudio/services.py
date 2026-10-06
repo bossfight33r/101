@@ -13,8 +13,9 @@ from techstudio.core.storage import LocalStorage
 def build_llm(s: Settings):
     if s.llm_provider == "fake":
         from techstudio.core.llm.fake import FakeLLM
+        from techstudio.script.fake import default_responses
 
-        return FakeLLM()
+        return FakeLLM(default_responses())
     from techstudio.core.llm.anthropic import AnthropicLLM
 
     key = s.anthropic_api_key.get_secret_value() if s.anthropic_api_key else None

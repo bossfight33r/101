@@ -103,3 +103,85 @@ def topic_import(path: Path, overwrite: bool = typer.Option(False, "--overwrite"
 
     added, skipped = backlog.import_file(services().db, path, overwrite=overwrite)
     typer.echo(f"импортировано: {added}, пропущено (уже есть): {skipped}")
+
+
+# ---------------- script ----------------
+
+script_app = typer.Typer(help="Сценарий: генерация, ревью, правка, approve.", no_args_is_help=True)
+app.add_typer(script_app, name="script")
+
+
+def _print_report(report) -> None:
+    typer.echo(f"оценка длительности: {report.estimated_sec / 60:.1f} мин")
+    for issue in report.issues:
+        color = typer.colors.RED if issue.level == "error" else typer.colors.YELLOW
+        typer.secho(f"  {issue}", fg=color)
+    typer.secho(
+        "валидация: ок" if report.ok else "валидация: есть ошибки — approve недоступен",
+        fg=typer.colors.GREEN if report.ok else typer.colors.RED,
+    )
+
+
+@script_app.command("new")
+def script_new(topic_id: str):
+    """Сгенерировать сценарий по теме → статус script_review."""
+    from techstudio.pipeline import scripts
+
+    try:
+        script, report = scripts.new_script(services(), topic_id)
+    except Exception as e:  # noqa: BLE001 — показать Боссу кратко
+        fail(f"не удалось: {e}")
+    typer.echo(f"видео: {script.video_id}  v{script.version}  сцен: {len(script.scenes)}")
+    _print_report(report)
+    typer.echo(f"сценарий: {scripts.script_path(services(), script.video_id)}")
+
+
+@script_app.command("export")
+def script_export(video_id: str, out: Path | None = typer.Option(None, "--out", "-o")):
+    """Выгрузить script.yaml для правки."""
+    from techstudio.pipeline import scripts
+
+    try:
+        typer.echo(str(scripts.export_script(services(), video_id, out)))
+    except Exception as e:  # noqa: BLE001
+        fail(str(e))
+
+
+@script_app.command("import")
+def script_import(video_id: str, path: Path):
+    """Загрузить правку: валидация → version+1 → script_review."""
+    from techstudio.pipeline import scripts
+
+    try:
+        script, report = scripts.import_script(
+            services(), video_id, path.read_text(encoding="utf-8")
+        )
+    except Exception as e:  # noqa: BLE001
+        fail(str(e))
+    typer.echo(f"импортировано: v{script.version}")
+    _print_report(report)
+
+
+@script_app.command("approve")
+def script_approve(video_id: str):
+    """Одобрить текущую версию сценария (без этого рендер невозможен)."""
+    from techstudio.pipeline import scripts
+
+    try:
+        script = scripts.approve(services(), video_id)
+    except Exception as e:  # noqa: BLE001
+        fail(str(e))
+    typer.secho(f"одобрено: {video_id} v{script.version}", fg=typer.colors.GREEN)
+
+
+@script_app.command("regen")
+def script_regen(video_id: str, scene_id: str, note: str = typer.Option("", "--note")):
+    """Перегенерировать одну сцену."""
+    from techstudio.pipeline import scripts
+
+    try:
+        script, report = scripts.regenerate_scene(services(), video_id, scene_id, note)
+    except Exception as e:  # noqa: BLE001
+        fail(str(e))
+    typer.echo(f"сцена {scene_id} переписана: v{script.version}")
+    _print_report(report)

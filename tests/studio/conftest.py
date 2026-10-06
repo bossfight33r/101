@@ -32,3 +32,17 @@ def settings(tmp_path, monkeypatch):
 @pytest.fixture
 def svc(settings) -> Services:
     return Services.from_settings(settings)
+
+
+@pytest.fixture
+def topic(svc):
+    from techstudio.schemas import Topic
+
+    t = Topic(
+        id="ss-ports",
+        title="ss: кто слушает порты",
+        key_points=["ss -tuln", "фильтр по порту"],
+        must_show_commands=["ss -tuln", "curl -I https://example.com"],
+    )
+    svc.db.upsert_topic(t)
+    return t
