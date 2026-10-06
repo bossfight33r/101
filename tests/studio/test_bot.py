@@ -123,3 +123,48 @@ def test_edit_after_reject(svc, ready):  # noqa: F811
     replies = logic.handle_document(svc, "script.yaml", yaml.dump(data, allow_unicode=True))
     assert "Правка принята" in replies[0].text
     assert svc.db.require_video(ready).status == VideoStatus.script_review
+
+
+def _balanced_html(text: str) -> bool:
+    from html.parser import HTMLParser
+
+    class P(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.stack, self.ok = [], True
+
+        def handle_starttag(self, tag, attrs):
+            if tag not in ("b", "code", "i"):
+                self.ok = False
+            self.stack.append(tag)
+
+        def handle_endtag(self, tag):
+            if not self.stack or self.stack.pop() != tag:
+                self.ok = False
+
+    p = P()
+    p.feed(text)
+    return p.ok and not p.stack
+
+
+def test_gate_html_escapes_commands(svc, topic):
+    script, _ = scripts.new_script(svc, topic.id)
+    data = yaml.safe_load(scripts.export_script(svc, script.video_id).read_text())
+    term = next(
+        s for s in data["scenes"] if s["type"] == "terminal" and s.get("mode", "live") == "live"
+    )
+    term["commands"] = ["export API_KEY=<YOUR_KEY> && ss -tuln > ports.txt"]
+    data["title"] = "a < b & c"
+    logic.handle_document(svc, "script.yaml", yaml.dump(data, allow_unicode=True))
+    (reply,) = logic.script_gate(svc, script.video_id)
+    assert reply.html and "&lt;YOUR_KEY&gt;" in reply.text and "&amp;&amp;" in reply.text
+    assert _balanced_html(reply.text)
+
+
+def test_split_text_keeps_lines():
+    from techstudio.bot.handlers import split_text
+
+    text = "\n".join(f"<code>строка {i}</code>" for i in range(1000))
+    chunks = split_text(text, limit=500)
+    assert all(len(c) <= 500 for c in chunks) and "\n".join(chunks) == text
+    assert all(_balanced_html(c) for c in chunks)

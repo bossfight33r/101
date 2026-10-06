@@ -247,7 +247,10 @@ async def test_bot_send_replies_uses_right_methods(tmp_path):
         [
             logic.Reply(videos=[vid], text="Превью"),
             logic.Reply(photos=[img, img, img]),
-            logic.Reply(text="<b>Сценарий</b>", buttons=[[("✅", "ts:ok:v1")]], documents=[doc]),
+            logic.Reply(
+                text="<b>Сценарий</b>", buttons=[[("✅", "ts:ok:v1")]], documents=[doc], html=True
+            ),
+            logic.Reply(text="❌ ошибка <без html>"),
         ],
     )
     assert (
@@ -257,11 +260,10 @@ async def test_bot_send_replies_uses_right_methods(tmp_path):
         bot.send_media_group.await_count == 1 and len(bot.send_media_group.await_args.args[1]) == 3
     )
     assert bot.send_document.await_count == 1
-    msg = bot.send_message.await_args
-    assert (
-        msg.kwargs["parse_mode"] == "HTML"
-        and msg.kwargs["reply_markup"].inline_keyboard[0][0].callback_data == "ts:ok:v1"
-    )
+    gate, err = bot.send_message.await_args_list
+    assert gate.kwargs["parse_mode"] == "HTML"
+    assert gate.kwargs["reply_markup"].inline_keyboard[0][0].callback_data == "ts:ok:v1"
+    assert err.kwargs["parse_mode"] is None
 
 
 async def test_notify_sends_gate_to_each_admin(svc, topic, monkeypatch):

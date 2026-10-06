@@ -34,6 +34,21 @@ def keyboard(rows) -> InlineKeyboardMarkup | None:
     )
 
 
+def split_text(text: str, limit: int = TG_LIMIT) -> list[str]:
+    """Режем по строкам (строки гейтов самодостаточны по HTML-тегам), не посреди тега."""
+    chunks, cur = [], ""
+    for line in text.split("\n"):
+        line = line if len(line) <= limit else line[: limit - 1] + "…"
+        if cur and len(cur) + 1 + len(line) > limit:
+            chunks.append(cur)
+            cur = line
+        else:
+            cur = f"{cur}\n{line}" if cur else line
+    if cur:
+        chunks.append(cur)
+    return chunks
+
+
 async def send_replies(bot: Bot, chat_id: int, replies: list[logic.Reply]) -> None:
     for r in replies:
         for v in r.videos:
@@ -47,9 +62,15 @@ async def send_replies(bot: Bot, chat_id: int, replies: list[logic.Reply]) -> No
         for d in r.documents:
             await bot.send_document(chat_id, FSInputFile(d))
         if r.text and not r.videos:
-            await bot.send_message(
-                chat_id, r.text[:TG_LIMIT], reply_markup=keyboard(r.buttons), parse_mode="HTML"
-            )
+            chunks = split_text(r.text)
+            for i, chunk in enumerate(chunks):
+                last = i == len(chunks) - 1
+                await bot.send_message(
+                    chat_id,
+                    chunk,
+                    reply_markup=keyboard(r.buttons) if last else None,
+                    parse_mode="HTML" if r.html else None,
+                )
 
 
 async def run_job(bot: Bot, chat_id: int, job) -> None:

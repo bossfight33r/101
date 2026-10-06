@@ -259,3 +259,66 @@ def test_concurrent_publish_blocked(svc, ready):
         with pytest.raises(orchestrator.BusyError):
             publish.publish_video(svc, ready, NOW)
     assert svc.publisher.uploads == []
+
+
+def test_retry_after_failed_upload_replans_past_slots(svc, ready):
+    """Загрузка упала, повтор через 3 дня: publishAt в прошлом YouTube не примет — план заново."""
+    from techstudio.publish.base import PublishError
+
+    class Flaky(FakePublisher):
+        def __init__(self):
+            super().__init__()
+            self.fail = True
+
+        def upload(self, file, **kw):
+            if self.fail:
+                raise PublishError("503", retryable=True)
+            return super().upload(file, **kw)
+
+    flaky = Flaky()
+    svc.overrides["publisher"] = flaky
+    review.approve(svc, ready, "A")
+    with pytest.raises(PublishError):
+        publish.publish_video(svc, ready, NOW)
+    first_plan = {p.id: p.scheduled_at for p in svc.db.list_publications(ready)}
+    assert svc.db.require_video(ready).failure.stage == "publish"
+
+    later = NOW + timedelta(days=3)
+    flaky.fail = False
+    pubs = publish.publish_video(svc, ready, later)
+    assert all(p.scheduled_at > later for p in pubs)
+    assert pubs[0].scheduled_at != first_plan[f"{ready}:long"]
+    assert all(s.scheduled_at > pubs[0].scheduled_at for s in pubs[1:])
+    assert svc.db.require_video(ready).failure is None
+
+
+def test_retry_after_long_uploaded_replans_only_stale_shorts(svc, ready):
+    from techstudio.publish.base import PublishError
+
+    class FailShorts(FakePublisher):
+        def __init__(self):
+            super().__init__()
+            self.fail_shorts = True
+
+        def upload(self, file, **kw):
+            if self.fail_shorts and "#shorts" in kw["title"]:
+                raise PublishError("quota", retryable=True)
+            return super().upload(file, **kw)
+
+    pub = FailShorts()
+    svc.overrides["publisher"] = pub
+    review.approve(svc, ready, "A")
+    with pytest.raises(PublishError):
+        publish.publish_video(svc, ready, NOW)
+    long_before = next(p for p in svc.db.list_publications(ready) if p.kind == "long")
+    assert long_before.remote_id
+    pub.fail_shorts = False
+    later = NOW + timedelta(days=2)
+    pubs = publish.publish_video(svc, ready, later)
+    assert (
+        pubs[0].scheduled_at == long_before.scheduled_at
+    )  # длинное уже на YouTube — время не трогаем
+    assert all(p.scheduled_at > later for p in pubs[1:])
+    assert (
+        len([u for u in pub.uploads if "#shorts" not in u["title"]]) == 1
+    )  # длинное не перезалито

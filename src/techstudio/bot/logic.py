@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import html
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -22,6 +23,7 @@ class Reply:
     documents: list[Path] = field(default_factory=list)
     videos: list[Path] = field(default_factory=list)
     photos: list[Path] = field(default_factory=list)
+    html: bool = False  # True — text в HTML, всё динамическое уже экранировано esc()
 
 
 Job = Callable[[], list[Reply]]
@@ -36,6 +38,11 @@ def cb(action: str, video_id: str, arg: str | int | None = None) -> str:
     if len(data.encode()) > 64:
         raise ValueError(f"callback_data > 64 байт: {data}")
     return data
+
+
+def esc(value) -> str:
+    """Экранирование для parse_mode=HTML: в командах и текстах бывают <YOUR_KEY>, >, &&."""
+    return html.escape(str(value), quote=False)
 
 
 def _flag(scene) -> str:
@@ -54,19 +61,23 @@ def script_gate(svc: Services, video_id: str) -> list[Reply]:
     script = scripts.load_script(svc, video_id)
     report = scripts.validate(svc, script)
     lines = [
-        f"📝 <b>Сценарий</b> {video_id} v{script.version}",
-        f"<b>{script.title}</b>",
-        f"Хук: {script.hook}",
+        f"📝 <b>Сценарий</b> {esc(video_id)} v{script.version}",
+        f"<b>{esc(script.title)}</b>",
+        f"Хук: {esc(script.hook)}",
         f"≈ {report.estimated_sec / 60:.1f} мин, сцен: {len(script.scenes)}, шортсов: {sum(s.short_candidate for s in script.scenes)}",
         "",
     ]
     for i, s in enumerate(script.scenes, 1):
         extra = " 🎬" if s.short_candidate else ""
-        lines.append(f"{i}. {s.type} <code>{s.id}</code>{_flag(s)}{extra}: {s.narration[:90]}")
+        lines.append(
+            f"{i}. {s.type} <code>{esc(s.id)}</code>{_flag(s)}{extra}: {esc(s.narration[:90])}"
+        )
         if s.type == "terminal":
-            lines.append("   $ " + " ; ".join(s.commands)[:150])
+            lines.append("   <code>$ " + esc(" ; ".join(s.commands)[:150]) + "</code>")
+            if s.files:
+                lines.append("   файлы: " + esc(", ".join(f"{k}←{v}" for k, v in s.files.items())))
     if report.issues:
-        lines += ["", "<b>Проблемы:</b>"] + [f"• {i}" for i in report.issues[:15]]
+        lines += ["", "<b>Проблемы:</b>"] + [f"• {esc(i)}" for i in report.issues[:15]]
     buttons = []
     if report.ok:
         buttons.append([("✅ Approve и рендер", cb("ok", video_id))])
@@ -78,7 +89,10 @@ def script_gate(svc: Services, video_id: str) -> list[Reply]:
     )
     return [
         Reply(
-            text="\n".join(lines), buttons=buttons, documents=[scripts.script_path(svc, video_id)]
+            text="\n".join(lines),
+            buttons=buttons,
+            documents=[scripts.script_path(svc, video_id)],
+            html=True,
         )
     ]
 
@@ -121,8 +135,8 @@ def final_gate(svc: Services, video_id: str) -> list[Reply]:
         return [Reply(text=f"{video_id}: нет результата рендера")]
     long = summary["long"]
     lines = [
-        f"🎬 <b>Финал</b> {video_id}",
-        f"<b>{summary['meta']['title']}</b>",
+        f"🎬 <b>Финал</b> {esc(video_id)}",
+        f"<b>{esc(summary['meta']['title'])}</b>",
         f"Длительность {long['duration'] / 60:.1f} мин, глав {len(long['chapters'])}"
         + ("" if long["chapters_valid"] else " (⚠️ главы невалидны)"),
         f"Шортсов: {len(summary['shorts'])}",
@@ -131,12 +145,12 @@ def final_gate(svc: Services, video_id: str) -> list[Reply]:
         lines.append(
             "Флаги: "
             + ", ".join(
-                f"{f['scene_id']}={'REPLAY' if f['mode'] == 'replay' else 'NETWORK'}"
+                f"{esc(f['scene_id'])}={'REPLAY' if f['mode'] == 'replay' else 'NETWORK'}"
                 for f in summary["flags"]
             )
         )
     if summary["warnings"]:
-        lines += ["", "<b>Предупреждения:</b>"] + [f"• {w}" for w in summary["warnings"][:15]]
+        lines += ["", "<b>Предупреждения:</b>"] + [f"• {esc(w)}" for w in summary["warnings"][:15]]
     lines.append("")
     lines.append(f"Миниатюра: {rec.thumbnail_id or 'не выбрана'}")
     thumbs = summary["thumbnails"]
@@ -163,7 +177,7 @@ def final_gate(svc: Services, video_id: str) -> list[Reply]:
             for s in summary["shorts"]
         ),
         Reply(photos=[svc.storage.path(t["image_key"]) for t in thumbs]),
-        Reply(text="\n".join(lines), buttons=buttons),
+        Reply(text="\n".join(lines), buttons=buttons, html=True),
     ]
 
 

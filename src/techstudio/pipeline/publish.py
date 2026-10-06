@@ -44,6 +44,68 @@ def short_texts(
     return title, "\n\n".join(desc)
 
 
+def plan_publications(
+    svc: Services, video_id: str, short_specs: list[dict], mine: dict, others: list, now: datetime
+):
+    """Слоты публикаций. Пока длинное не загружено — план целиком заново (на YouTube ничего нет);
+    после — сохраняем время загруженных и будущих, просроченные шортсы перепланируем (publishAt в прошлом
+    YouTube не примет)."""
+    ch = svc.channel
+    long_id = f"{video_id}:long"
+    short_ids = [f"{video_id}:{s['id']}" for s in short_specs]
+    earliest = now + scheduler.LEAD
+    long_pub = mine.get(long_id)
+    if long_pub is None or long_pub.remote_id is None:
+        long_at, short_at = scheduler.plan(ch, others, now, len(short_specs))
+        pubs = [
+            (
+                long_pub
+                or Publication(
+                    id=long_id,
+                    video_id=video_id,
+                    kind="long",
+                    account_id=ch.account_id,
+                    scheduled_at=long_at,
+                )
+            ).model_copy(update={"scheduled_at": long_at})
+        ]
+        for spec, pid, at in zip(short_specs, short_ids, short_at, strict=True):
+            base = mine.get(pid) or Publication(
+                id=pid,
+                video_id=video_id,
+                kind="short",
+                short_id=spec["id"],
+                account_id=ch.account_id,
+                scheduled_at=at,
+            )
+            pubs.append(base.model_copy(update={"scheduled_at": at}))
+        return pubs
+    keep = {pid: p for pid, p in mine.items() if p.remote_id or p.scheduled_at >= earliest}
+    need = [
+        (spec, pid) for spec, pid in zip(short_specs, short_ids, strict=True) if pid not in keep
+    ]
+    fresh: list[datetime] = []
+    if need:
+        _, fresh = scheduler.plan(ch, others + list(keep.values()), now, len(need))
+    it = iter(fresh)
+    pubs = [long_pub]
+    for spec, pid in zip(short_specs, short_ids, strict=True):
+        if pid in keep:
+            pubs.append(keep[pid])
+        else:
+            at = next(it)
+            base = mine.get(pid) or Publication(
+                id=pid,
+                video_id=video_id,
+                kind="short",
+                short_id=spec["id"],
+                account_id=ch.account_id,
+                scheduled_at=at,
+            )
+            pubs.append(base.model_copy(update={"scheduled_at": at}))
+    return pubs
+
+
 def export_thumbnail(svc: Services, video_id: str, image, reason: str):
     out_dir = svc.storage.ensure_dir(f"exports/{video_id}")
     target = out_dir / "thumbnail.jpg"
@@ -81,45 +143,7 @@ def _publish_video(svc: Services, video_id: str, now: datetime | None = None) ->
 
     mine = {p.id: p for p in svc.db.list_publications(video_id)}
     others = [p for p in svc.db.list_publications() if p.video_id != video_id]
-    long_id = f"{video_id}:long"
-    if long_id in mine:
-        long_at = mine[long_id].scheduled_at
-        short_at = [
-            mine[f"{video_id}:{s['id']}"].scheduled_at if f"{video_id}:{s['id']}" in mine else None
-            for s in short_specs
-        ]
-        if any(t is None for t in short_at):
-            _, fresh = scheduler.plan(
-                ch, others + list(mine.values()), now, sum(t is None for t in short_at)
-            )
-            it = iter(fresh)
-            short_at = [t if t is not None else next(it) for t in short_at]
-    else:
-        long_at, short_at = scheduler.plan(ch, others, now, len(short_specs))
-
-    pubs = [
-        mine.get(long_id)
-        or Publication(
-            id=long_id,
-            video_id=video_id,
-            kind="long",
-            account_id=ch.account_id,
-            scheduled_at=long_at,
-        )
-    ]
-    for spec, at in zip(short_specs, short_at, strict=True):
-        pid = f"{video_id}:{spec['id']}"
-        pubs.append(
-            mine.get(pid)
-            or Publication(
-                id=pid,
-                video_id=video_id,
-                kind="short",
-                short_id=spec["id"],
-                account_id=ch.account_id,
-                scheduled_at=at,
-            )
-        )
+    pubs = plan_publications(svc, video_id, short_specs, mine, others, now)
     for p in pubs:
         svc.db.upsert_publication(p)
 
