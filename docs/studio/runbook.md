@@ -65,6 +65,10 @@ studio track && studio report --recommendations
 studio topic suggest && studio topic accept <file> <id>
 ```
 
+## Диск
+`studio cleanup` — сколько места займут промежуточные файлы вышедших видео; `studio cleanup --apply` — удалить.
+Остаются long.mp4, шортсы, миниатюры, SRT, сценарии, озвучка. Перерендер такого видео пересоберёт удалённое.
+
 ## Сбои
 - `studio status <id>` — этап и ошибка. `studio retry <id>` — повтор из кеша.
 - Policy заблокировала команду — правь сценарий (import), не обходи policy.

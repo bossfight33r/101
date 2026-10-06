@@ -493,3 +493,18 @@ def selftest(
         typer.echo(f"\nсмотреть: {res.long_path}")
     if not res.ok:
         raise typer.Exit(1)
+
+
+@app.command()
+def cleanup(
+    apply: bool = typer.Option(False, "--apply", help="Удалить (без флага — только посчитать)."),
+):
+    """Удалить промежуточные файлы вышедших видео (итоговые видео, миниатюры и сценарии остаются)."""
+    from techstudio.pipeline import cleanup as cl
+
+    n, size = cl.cleanup(services(), dry_run=not apply)
+    verb = "удалено" if apply else "можно удалить"
+    typer.echo(
+        f"{verb}: {n} объектов, {size / 1e6:.1f} МБ"
+        + ("" if apply else "  (studio cleanup --apply)")
+    )

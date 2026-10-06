@@ -370,3 +370,27 @@ def test_shorts_not_at_night(svc):
     assert loc[1] == datetime(2026, 10, 7, 8, 0, tzinfo=MSK)  # 02:00 → начало окна
     assert loc[2] == datetime(2026, 10, 7, 12, 0, tzinfo=MSK)
     assert all(8 <= t.hour <= 23 for t in loc)
+
+
+def test_cleanup_only_published_and_keeps_finals(svc, ready):
+    from techstudio.pipeline import cleanup
+
+    vdir = svc.video_dir(ready)
+    scene = vdir / "scenes" / "cmd1"
+    (scene / "vhs_16x9").mkdir(parents=True)
+    (scene / "vhs_16x9" / "visual.mp4").write_bytes(b"x" * 100)
+    (scene / "segment_16x9.mp4").write_bytes(b"x" * 50)
+    (scene / "narration.wav").write_bytes(b"x")
+    assert cleanup.cleanup(svc, dry_run=True) == (0, 0)  # не опубликовано — не трогаем
+    svc.db.update_video(ready, status=VideoStatus.published)
+    n, size = cleanup.cleanup(svc, dry_run=True)
+    assert (
+        n == 3 and size == 151 and (scene / "segment_16x9.mp4").exists()
+    )  # vhs + segment + preview
+    cleanup.cleanup(svc, dry_run=False)
+    assert not (scene / "segment_16x9.mp4").exists() and not (scene / "vhs_16x9").exists()
+    assert (
+        (scene / "narration.wav").exists()
+        and (vdir / "long.mp4").exists()
+        and (vdir / "thumbs" / "A.jpg").exists()
+    )
