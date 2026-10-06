@@ -69,6 +69,10 @@ studio topic suggest && studio topic accept <file> <id>
 `studio cleanup` — сколько места займут промежуточные файлы вышедших видео; `studio cleanup --apply` — удалить.
 Остаются long.mp4, шортсы, миниатюры, SRT, сценарии, озвучка. Перерендер такого видео пересоберёт удалённое.
 
+## Резервные копии
+`studio backup` — онлайн-копия SQLite в `data/studio/backups/` (хранит 14 последних, `--keep N`).
+Раз в день по cron: `0 4 * * * cd ~/101 && .venv/bin/studio backup`.
+
 ## Сбои
 - `studio status <id>` — этап и ошибка. `studio retry <id>` — повтор из кеша.
 - Policy заблокировала команду — правь сценарий (import), не обходи policy.

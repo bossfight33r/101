@@ -508,3 +508,17 @@ def cleanup(
         f"{verb}: {n} объектов, {size / 1e6:.1f} МБ"
         + ("" if apply else "  (studio cleanup --apply)")
     )
+
+
+@app.command()
+def backup(keep: int = typer.Option(14, "--keep", help="Сколько последних копий хранить.")):
+    """Копия БД (темы, видео, ревью, публикации, статистика) в data/studio/backups/."""
+    from datetime import UTC, datetime
+
+    svc = services()
+    dest = svc.storage.path(f"backups/studio-{datetime.now(UTC):%Y%m%d-%H%M%S}.db")
+    svc.db.backup(dest)
+    old = sorted(dest.parent.glob("studio-*.db"))[:-keep] if keep > 0 else []
+    for p in old:
+        p.unlink()
+    typer.echo(f"копия: {dest}" + (f"  (удалено старых: {len(old)})" if old else ""))

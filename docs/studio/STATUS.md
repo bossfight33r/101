@@ -16,7 +16,7 @@
 
 ## Готово
 - CLI `studio`: `doctor`, `topic add|list|import|suggest|accept`, `script new|export|import|approve|regen`,
-  `videos`, `render [--scene] [--notify]`, `status`, `selftest`, `cleanup [--apply]`, `retry`, `review approve|reject|thumb`, `publish`, `notify`,
+  `videos`, `render [--scene] [--notify]`, `status`, `selftest`, `cleanup [--apply]`, `backup`, `retry`, `review approve|reject|thumb`, `publish`, `notify`,
   `auth youtube`, `bot`, `track`, `report [--recommendations]`.
 - Сценарий: LLM → Pydantic, валидация (хук ≤ 10 с, длительность, запрещённые фразы, шортсы, mermaid реальным mmdc если есть, policy), YAML round-trip, версии, approve с хешем.
 - Policy песочницы (денилист + секреты + сеть только по флагу; код из `files` проверяется тем же денилистом), Docker-раннер (non-root, без сети, read-only, cap-drop, лимиты, таймаут).

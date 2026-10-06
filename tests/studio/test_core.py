@@ -100,3 +100,22 @@ def test_bad_channel_config_is_readable(tmp_path, monkeypatch):
     cli._state.pop("svc", None)
     assert r.exit_code == 1
     assert "words_per_minute" in r.output and "Traceback" not in r.output
+
+
+def test_db_backup_cli_and_rotation(svc, monkeypatch):
+    import sqlite3
+
+    from techstudio import cli
+
+    svc.db.upsert_topic(Topic(id="t1", title="T"))
+    monkeypatch.setitem(cli._state, "svc", svc)
+    for _ in range(3):
+        r = CliRunner().invoke(cli.app, ["backup", "--keep", "2"])
+        assert r.exit_code == 0, r.output
+        import time
+
+        time.sleep(1.05)
+    files = sorted(svc.storage.path("backups").glob("studio-*.db"))
+    assert len(files) == 2
+    rows = sqlite3.connect(files[-1]).execute("SELECT id FROM topics").fetchall()
+    assert rows == [("t1",)]

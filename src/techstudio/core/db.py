@@ -69,6 +69,18 @@ class Database:
         finally:
             conn.close()
 
+    def backup(self, dest: Path) -> Path:
+        """Онлайн-копия SQLite (консистентна даже во время работы бота)."""
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        src = sqlite3.connect(self.path)
+        dst = sqlite3.connect(dest)
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+            src.close()
+        return dest
+
     # ----- topics -----
     def upsert_topic(self, topic: Topic) -> None:
         with self._conn() as c:
