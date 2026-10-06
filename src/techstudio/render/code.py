@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -186,4 +187,5 @@ class CodeRenderer:
             frames.append((self.compose(scene, lay, visible, hl, sdir / f"f{i:03d}.png"), dur))
         out = self.env.visual_path(scene.id, aspect)
         frames_to_video(frames, out, aspect, self.env.encoder)
+        shutil.rmtree(sdir, ignore_errors=True)  # PNG-кадры промежуточные: видео уже собрано
         return finish(self.env, scene.id, aspect, out)

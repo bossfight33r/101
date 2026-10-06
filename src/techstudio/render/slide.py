@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 from PIL import ImageDraw
@@ -98,6 +99,7 @@ class SlideRenderer:
             )
         out = self.env.visual_path(scene.id, aspect)
         frames_to_video(frames, out, aspect, self.env.encoder)
+        shutil.rmtree(sdir, ignore_errors=True)  # PNG-кадры промежуточные: видео уже собрано
         return finish(self.env, scene.id, aspect, out)
 
 

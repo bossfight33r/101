@@ -12,7 +12,14 @@ from techstudio.core import log
 from techstudio.pipeline import orchestrator, scripts
 from techstudio.publish import scheduler
 from techstudio.publish.base import PublishError
-from techstudio.schemas import FailureInfo, Publication, VideoAssembly, VideoMeta, VideoStatus
+from techstudio.schemas import (
+    FailureInfo,
+    Publication,
+    TopicStatus,
+    VideoAssembly,
+    VideoMeta,
+    VideoStatus,
+)
 from techstudio.services import Services
 
 _log = log.get("publish")
@@ -245,4 +252,6 @@ def mark_published(svc: Services, now: datetime | None = None) -> int:
                 rec = svc.db.get_video(p.video_id)
                 if rec and rec.status == VideoStatus.scheduled:
                     svc.db.update_video(p.video_id, status=VideoStatus.published)
+                    if svc.db.get_topic(rec.topic_id):
+                        svc.db.set_topic_status(rec.topic_id, TopicStatus.done)
     return n

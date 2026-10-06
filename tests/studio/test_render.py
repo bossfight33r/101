@@ -321,7 +321,11 @@ VHS = shutil.which(os.environ.get("TS_VHS_BIN", "vhs"))
             commands=["ss -tuln", 'echo "hi there"', "grep -r 'listen' /etc | head"],
         ),
         TerminalScene(
-            id="b", narration="n", commands=["opkg update"], mode="replay", replay_output_key="k"
+            id="b",
+            narration="n",
+            commands=["opkg update"],
+            mode="replay",
+            replay_output_key="assets/k",
         ),
         TerminalScene(id="c", narration="n", commands=["printf '%s\\n' \"a b\""], typing_speed=30),
         TerminalScene(
@@ -441,7 +445,7 @@ def test_files_must_reference_code_scene():
             narration="n",
             commands=["ls"],
             mode="replay",
-            replay_output_key="k",
+            replay_output_key="assets/k",
             files={"x.py": "c"},
         )
 
@@ -464,3 +468,10 @@ def test_sandbox_read_only_toggle(tmp_path):
     )
     assert "--read-only" in on and "--read-only" not in off
     assert off[off.index("--network") + 1] == "none" and "ALL" in off  # остальная изоляция на месте
+
+
+def test_intermediate_frames_removed(env):
+    sc = SlideScene(id="sf", narration="n", title="T", bullets=["a", "b"])
+    SlideRenderer(env).render(sc, "16x9", 2.0)
+    assert not (env.scene_dir("sf") / "frames_16x9").exists()
+    assert env.visual_path("sf", "16x9").exists()

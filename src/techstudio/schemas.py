@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 # ---------- общие (в ClipFactory жили бы в его schemas; здесь — в одном месте) ----------
 
@@ -119,12 +119,24 @@ class SceneBase(Strict):
 
 FILE_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._-]{0,63}")
 
+# ключи ассетов из сценария (его пишет LLM): только внутри data/studio/assets/, без .. и абсолютных путей
+ASSET_KEY = re.compile(r"assets/(?:[A-Za-z0-9_][A-Za-z0-9._-]*/)*[A-Za-z0-9_][A-Za-z0-9._-]*")
+
+
+def _check_asset_key(value: str | None) -> str | None:
+    if value is not None and (not ASSET_KEY.fullmatch(value) or ".." in value.split("/")):
+        raise ValueError(f"ключ {value!r}: только assets/… без .. и абсолютных путей")
+    return value
+
+
+AssetKey = Annotated[str, AfterValidator(_check_asset_key)]
+
 
 class TerminalScene(SceneBase):
     type: Literal["terminal"] = "terminal"
     mode: Literal["live", "replay"] = "live"
     commands: list[str] = Field(min_length=1)
-    replay_output_key: str | None = None
+    replay_output_key: AssetKey | None = None
     network: bool = False
     typing_speed: int = Field(45, ge=5, le=300)  # мс на символ
     # файлы в ~ контейнера до команд: имя файла -> id code-сцены этого сценария (код видит зритель)
@@ -173,7 +185,7 @@ class SlideScene(SceneBase):
 
 class ImageScene(SceneBase):
     type: Literal["image"] = "image"
-    asset_key: str
+    asset_key: AssetKey
     caption: str = ""
 
 

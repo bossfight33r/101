@@ -28,7 +28,18 @@ def main(
 
 def services() -> Services:
     if "svc" not in _state:
-        _state["svc"] = Services.from_settings()
+        from pydantic import ValidationError
+
+        try:
+            svc = Services.from_settings()
+            svc.channel  # noqa: B018 — проверить channel.yaml сразу, а не посреди рендера
+            svc.settings.voices  # noqa: B018
+        except ValidationError as e:
+            lines = [f"  {'.'.join(map(str, err['loc']))}: {err['msg']}" for err in e.errors()]
+            fail("ошибка конфигурации (.env / config/studio/*.yaml):\n" + "\n".join(lines))
+        except (OSError, ValueError) as e:
+            fail(f"ошибка конфигурации: {e}")
+        _state["svc"] = svc
     return _state["svc"]
 
 
@@ -41,7 +52,12 @@ def fail(msg: str, code: int = 1):
 
 
 @app.command()
-def doctor(as_json: bool = typer.Option(False, "--json")):
+def doctor(
+    as_json: bool = typer.Option(False, "--json"),
+    strict: bool = typer.Option(
+        False, "--strict", help="Код выхода 1, если не хватает обязательного."
+    ),
+):
     """Проверить Docker, образ песочницы, VHS, Piper и голос, mermaid-cli, шрифты, ffmpeg."""
     from techstudio import doctor as d
 
@@ -57,6 +73,8 @@ def doctor(as_json: bool = typer.Option(False, "--json")):
         typer.echo(line)
     missing = [c.name for c in checks if c.required and not c.ok]
     typer.echo(f"\nНе хватает обязательных: {len(missing)}" if missing else "\nВсё на месте.")
+    if strict and missing:
+        raise typer.Exit(1)
 
 
 # ---------------- topics ----------------

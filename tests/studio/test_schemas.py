@@ -4,6 +4,7 @@ from pydantic import TypeAdapter, ValidationError
 from techstudio.schemas import (
     Channel,
     CodeScene,
+    ImageScene,
     Scene,
     Script,
     SlideScene,
@@ -44,7 +45,11 @@ def test_replay_requires_output_key():
     with pytest.raises(ValidationError):
         TerminalScene(id="s", narration="x", commands=["uci show"], mode="replay")
     ok = TerminalScene(
-        id="s", narration="x", commands=["uci show"], mode="replay", replay_output_key="r/x.txt"
+        id="s",
+        narration="x",
+        commands=["uci show"],
+        mode="replay",
+        replay_output_key="assets/r/x.txt",
     )
     assert ok.mode == "replay"
 
@@ -97,3 +102,36 @@ def test_channel_example_loads():
     assert len(load_topics(ROOT / "config/studio/topics.example.yaml")) >= 3
     v = load_voices(ROOT / "config/studio/voices.yaml")
     assert ch.voice_id in v.voices and "OpenWrt" in v.pronunciation
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "../.env",
+        "/etc/passwd",
+        "assets/../secrets/yt.json",
+        "secrets/yt_main.json",
+        "assets//x",
+        "assets/x/../../y",
+    ],
+)
+def test_asset_keys_cannot_escape(key):
+    with pytest.raises(ValidationError):
+        ImageScene(id="i", narration="n", asset_key=key)
+    with pytest.raises(ValidationError):
+        TerminalScene(
+            id="t", narration="n", commands=["uci show"], mode="replay", replay_output_key=key
+        )
+
+
+def test_asset_keys_ok():
+    assert ImageScene(
+        id="i", narration="n", asset_key="assets/openwrt/luci-ru.png"
+    ).asset_key.endswith(".png")
+    TerminalScene(
+        id="t",
+        narration="n",
+        commands=["opkg update"],
+        mode="replay",
+        replay_output_key="assets/replay/ow/opkg-update",
+    )

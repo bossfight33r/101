@@ -249,6 +249,9 @@ def test_mark_published(svc, ready):
     pubs = publish.publish_video(svc, ready, NOW)
     assert publish.mark_published(svc, pubs[0].scheduled_at + timedelta(minutes=1)) == 1
     assert svc.db.require_video(ready).status == VideoStatus.published
+    from techstudio.schemas import TopicStatus
+
+    assert svc.db.get_topic(svc.db.require_video(ready).topic_id).status == TopicStatus.done
 
 
 def test_concurrent_publish_blocked(svc, ready):

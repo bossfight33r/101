@@ -76,3 +76,27 @@ def test_cli_topic_import_list(svc, monkeypatch):
     assert r.exit_code == 0, r.output
     r = CliRunner().invoke(cli.app, ["topic", "list"])
     assert "openwrt-first-steps" in r.output
+
+
+def test_doctor_strict_exit_code(svc, monkeypatch):
+    from techstudio import cli, doctor
+
+    monkeypatch.setitem(cli._state, "svc", svc)
+    monkeypatch.setattr(doctor, "run_all", lambda s: [doctor.Check("x", False, "нет")])
+    assert CliRunner().invoke(cli.app, ["doctor"]).exit_code == 0
+    assert CliRunner().invoke(cli.app, ["doctor", "--strict"]).exit_code == 1
+
+
+def test_bad_channel_config_is_readable(tmp_path, monkeypatch):
+    from techstudio import cli
+
+    bad = tmp_path / "channel.yaml"
+    bad.write_text("id: x\nname: y\nvoice_id: v\naccount_id: a\nwords_per_minute: 5\n")
+    monkeypatch.setenv("TS_CHANNEL_FILE", str(bad))
+    monkeypatch.setenv("TS_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.chdir(tmp_path)
+    cli._state.pop("svc", None)
+    r = CliRunner().invoke(cli.app, ["topic", "list"])
+    cli._state.pop("svc", None)
+    assert r.exit_code == 1
+    assert "words_per_minute" in r.output and "Traceback" not in r.output
