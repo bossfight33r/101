@@ -16,6 +16,7 @@ def build_sandbox(s) -> DockerSandbox:
     return DockerSandbox(
         image=s.sandbox_image,
         docker_bin=s.docker_bin,
+        network_name=s.sandbox_network,
         limits=SandboxLimits(
             cpus=s.sandbox_cpus,
             memory=s.sandbox_memory,

@@ -475,3 +475,11 @@ def test_intermediate_frames_removed(env):
     SlideRenderer(env).render(sc, "16x9", 2.0)
     assert not (env.scene_dir("sf") / "frames_16x9").exists()
     assert env.visual_path("sf", "16x9").exists()
+
+
+def test_sandbox_custom_network_for_network_scenes(tmp_path):
+    sb = DockerSandbox(network_name="ts-internet-only")
+    on = sb.build_args(tmp_path, ["/out/scene.tape"], network=True, name="x")
+    off = sb.build_args(tmp_path, ["/out/scene.tape"], network=False, name="x")
+    assert on[on.index("--network") + 1] == "ts-internet-only"
+    assert off[off.index("--network") + 1] == "none"

@@ -91,6 +91,18 @@ RULES: tuple[Rule, ...] = (
     _r("history-wipe", r"\bhistory\s+-c\b|>\s*~/.bash_history", "затирание истории", "warning"),
     _r("crypto-miner", r"\b(?:xmrig|minerd|cpuminer)\b", "майнер"),
     _r("reverse-shell", r"/dev/tcp/|\bnc\b[^\n]*\s-e\s|\bncat\b[^\n]*--exec", "reverse shell"),
+    # обфускация: то, что policy не может прочитать, не выполняем и не показываем
+    _r("eval", _SEP + r"eval\b", "eval — команда не читается policy"),
+    _r(
+        "decode-to-shell",
+        r"\b(?:base64\s+(?:-d|--decode|-D)|xxd\s+-r|openssl\s+(?:base64|enc)\s+[^|]*-d)[^|]*\|\s*(?:sudo\s+)?(?:ba|z|da|k)?sh\b",
+        "декодирование в shell — команда не читается policy",
+    ),
+    _r(
+        "subst-decode",
+        r"\$\([^)]*\b(?:base64\s+(?:-d|--decode|-D)|xxd\s+-r)\b",
+        "выполнение декодированного текста — команда не читается policy",
+    ),
     _r(
         "iptables-flush",
         _SEP + r"(?:iptables|nft)\s+(?:-F|flush\s+ruleset)\b",

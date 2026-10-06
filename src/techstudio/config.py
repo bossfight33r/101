@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     sandbox_pids: int = 256
     sandbox_timeout: int = 300
     sandbox_read_only: bool = True
+    sandbox_network: str = (
+        "bridge"  # docker network для network: true (см. runbook: без доступа к LAN)
+    )
     mermaid_image: str = "minlag/mermaid-cli:latest"
     mermaid_bin: str = "mmdc"
     mermaid_puppeteer_config: str | None = (

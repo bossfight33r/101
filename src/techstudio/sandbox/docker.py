@@ -41,11 +41,14 @@ class DockerSandbox:
         docker_bin: str = "docker",
         limits: SandboxLimits | None = None,
         runner: Runner | None = None,
+        network_name: str = "bridge",
     ):
         self.image = image
         self.docker_bin = docker_bin
         self.limits = limits or SandboxLimits()
         self._run = runner or subprocess.run
+        # сеть для сцен с network: true. bridge видит и домашнюю LAN — лучше своя сеть (runbook)
+        self.network_name = network_name
 
     def available(self) -> bool:
         if shutil.which(self.docker_bin) is None:
@@ -70,7 +73,7 @@ class DockerSandbox:
             "--name",
             name,
             "--network",
-            "bridge" if network else "none",
+            self.network_name if network else "none",
             "--user",
             "1000:1000",
             "--cpus",

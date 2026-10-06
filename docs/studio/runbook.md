@@ -30,6 +30,20 @@ uv pip install --python .venv/bin/python piper-tts
 - mermaid-cli локально: `npm i -g @mermaid-js/mermaid-cli` → `TS_MERMAID_BIN=mmdc`. Под root (Linux-сервер)
   нужен `TS_MERMAID_PUPPETEER_CONFIG=puppeteer.json` с `{"executablePath": "…/chrome", "args": ["--no-sandbox"]}`.
 
+## Сеть песочницы (`network: true`)
+По умолчанию у песочницы сети нет (`--network none`). Сцена с `network: true` получает
+`TS_SANDBOX_NETWORK` (по умолчанию `bridge`) — а bridge видит и домашнюю сеть (роутер, NAS).
+Linux-хост — сеть только в интернет:
+```bash
+docker network create -o com.docker.network.bridge.name=ts-inet ts-internet-only
+for net in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16; do
+  sudo iptables -I DOCKER-USER -i ts-inet -d $net -j DROP
+done
+echo TS_SANDBOX_NETWORK=ts-internet-only >> .env
+```
+Мак (Docker Desktop): фильтровать LAN из VM сложно — для всего, что касается роутера и локальной
+сети, используй `mode: replay`, а `network: true` — только для публичного интернета (curl, dig, pip).
+
 ## Уведомления
 `studio script new <topic> --notify`, `studio render <id> --notify`, `studio notify <id>` — гейт в Telegram всем `TS_ADMIN_IDS`.
 
