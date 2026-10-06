@@ -1,7 +1,7 @@
 PY := .venv/bin/python
 UV ?= uv
 
-.PHONY: setup setup-mac test lint fmt sandbox-image doctor bot
+.PHONY: setup setup-mac test lint fmt sandbox-image doctor bot selftest
 
 setup:
 	$(UV) venv --python 3.12 .venv
@@ -31,3 +31,7 @@ doctor:
 
 bot:
 	.venv/bin/studio bot
+
+selftest:
+	.venv/bin/studio doctor --strict
+	.venv/bin/studio selftest

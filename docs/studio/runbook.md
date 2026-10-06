@@ -8,6 +8,7 @@ cp config/studio/channel.example.yaml config/studio/channel.yaml   # шрифт:
 make sandbox-image                  # docker build -t techstudio-sandbox:latest docker/studio
 docker pull minlag/mermaid-cli:latest
 .venv/bin/studio doctor
+TS_TTS=piper TS_TRANSCRIBER=faster_whisper make selftest   # демо-видео на реальных компонентах
 ```
 
 ## Piper

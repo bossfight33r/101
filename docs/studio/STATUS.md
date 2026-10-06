@@ -60,6 +60,11 @@ make sandbox-image && docker pull minlag/mermaid-cli:latest
 .venv/bin/studio doctor                            # всё обязательное — ✅
 make test
 
+# 0. Всё разом: doctor --strict + демо-видео на реальных Docker/VHS/mermaid/Piper/ASR (без LLM и публикации)
+TS_TTS=piper TS_TRANSCRIBER=faster_whisper make selftest
+open data/studio-selftest/videos/*/long.mp4
+#   каждый ❌ — с этапом и причиной; ниже — те же проверки по отдельности
+
 # 1. Песочница и VHS (реальный вывод)
 .venv/bin/studio topic import config/studio/topics.example.yaml
 .venv/bin/studio script new linux-ss-vs-netstat

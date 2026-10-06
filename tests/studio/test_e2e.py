@@ -146,3 +146,17 @@ def test_pronunciation_not_in_subtitles(svc, topic, small_channel):
     ]  # субтитры — исходник
     data = json.loads((ctx.scene_dir("x") / "words.json").read_text())
     assert data[2]["text"] == "SSH"
+
+
+def test_selftest_reports_fake_terminal_and_fallback(settings, tmp_path):
+    """selftest с fake-рендерами: конвейер проходит, но честно помечает, что Docker/mermaid не проверены."""
+    from techstudio import selftest
+
+    settings.__dict__["channel"] = settings.channel
+    res = selftest.run(settings, tmp_path / "st", real=False, keep=False)
+    checks = {name: ok for name, ok, _ in res.checks}
+    assert checks["сценарий (fake LLM) + валидация"] and checks["длинное видео 1920x1080"]
+    assert (
+        checks["терминал: Docker + VHS (live, files, replay)"] is False
+    )  # fake-визуал не выдаётся за реальный
+    assert res.long_path.exists() and not res.ok

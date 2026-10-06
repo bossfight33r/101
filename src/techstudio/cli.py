@@ -468,3 +468,28 @@ def topic_accept(
 
     added = suggest.accept(services(), path, topic_ids or [], accept_all)
     typer.echo(f"в бэклог: {', '.join(added) if added else 'ничего'}")
+
+
+@app.command()
+def selftest(
+    fake_renderers: bool = typer.Option(
+        False, "--fake-renderers", help="Не требовать Docker/mermaid (проверка конвейера)."
+    ),
+    data_dir: Path = typer.Option(Path("data/studio-selftest"), "--data-dir"),
+):
+    """Демо-видео на реальных компонентах (Docker+VHS, mermaid, Piper, ASR). Без LLM-затрат и публикации."""
+    from techstudio import selftest as st
+
+    base = services().settings
+    typer.echo(
+        f"selftest → {data_dir} (TTS={base.tts}, ASR={base.transcriber}, рендер={'как в .env' if fake_renderers else 'real'})"
+    )
+    res = st.run(base, base.resolve(data_dir), real=not fake_renderers, keep=False)
+    for name, ok, detail in res.checks:
+        typer.secho(
+            f"{'✅' if ok else '❌'} {name:42} {detail}", fg=None if ok else typer.colors.RED
+        )
+    if res.long_path:
+        typer.echo(f"\nсмотреть: {res.long_path}")
+    if not res.ok:
+        raise typer.Exit(1)
