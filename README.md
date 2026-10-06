@@ -13,6 +13,7 @@ make setup
 .venv/bin/studio render <VIDEO_ID>               # озвучка → визуалы → long.mp4 + шортсы
 .venv/bin/studio review <VIDEO_ID> approve --thumb B && .venv/bin/studio publish <VIDEO_ID>
 .venv/bin/studio bot                             # то же через Telegram (только TS_ADMIN_IDS)
+.venv/bin/studio selftest                        # демо-видео на реальных Docker/VHS/mermaid/Piper/ASR
 ```
 
 Без ключей и Docker всё работает на фейках: `TS_LLM_PROVIDER=fake TS_TTS=fake TS_TRANSCRIBER=fake TS_RENDERERS=auto TS_PUBLISHER=fake`.
