@@ -88,6 +88,29 @@ def video_lock(svc: Services, video_id: str):
 Progress = Callable[[str], None]
 
 
+LONG_SCENE_SEC = 45.0
+TITLE_SOFT_LIMIT = 70
+
+
+def quality_warnings(svc: Services, ctx, asm, meta) -> list[str]:
+    """Проверки по факту (реальная озвучка может отличаться от оценки по словам)."""
+    out = []
+    lo, hi = svc.channel.longform.min_sec, svc.channel.longform.max_sec
+    if not lo <= asm.duration <= hi:
+        out.append(
+            f"длительность {asm.duration / 60:.1f} мин вне окна канала {lo / 60:.0f}–{hi / 60:.0f} мин"
+        )
+    for scene in ctx.long_scenes:
+        d = ctx.durations.get(scene.id, 0)
+        if d > LONG_SCENE_SEC and scene.id not in ("hook", "outro"):
+            out.append(f"{scene.id}: {d:.0f} с без смены визуала — подумай, не разбить ли сцену")
+    if len(meta.title) > TITLE_SOFT_LIMIT:
+        out.append(
+            f"заголовок {len(meta.title)} символов — в выдаче обрежется после ~{TITLE_SOFT_LIMIT}"
+        )
+    return out
+
+
 def render_video(svc: Services, video_id: str, progress: Progress | None = None) -> dict:
     """approved → voicing → rendering → assembling → final_review. Повтор = resume по манифестам.
     progress — колбэк для человека (бот обновляет одно сообщение)."""
@@ -120,6 +143,7 @@ def _render_video(svc: Services, video_id: str, progress: Progress) -> dict:
     except Exception as e:
         _fail(svc, video_id, stage, e)
         raise
+    ctx.warnings += quality_warnings(svc, ctx, asm, meta)
     summary = {
         "video_id": video_id,
         "script_version": script.version,

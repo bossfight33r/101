@@ -213,3 +213,24 @@ def test_cli_videos_list(svc, topic, monkeypatch):
     assert r.exit_code == 0 and script.video_id in r.output and "script_review" in r.output
     r = CliRunner().invoke(cli.app, ["videos", "--status", "approved"])
     assert script.video_id not in r.output
+
+
+def test_quality_warnings():
+    from types import SimpleNamespace
+
+    from techstudio.schemas import Channel, SlideScene
+
+    ch = Channel(id="c", name="n", voice_id="v", account_id="a")
+    svc = SimpleNamespace(channel=ch)
+    ctx = SimpleNamespace(
+        long_scenes=[
+            SlideScene(id="hook", narration="x", title="t"),
+            SlideScene(id="a", narration="x", title="t"),
+        ],
+        durations={"hook": 50, "a": 80},
+    )
+    asm = SimpleNamespace(duration=200.0)
+    meta = SimpleNamespace(title="Т" * 80)
+    w = orchestrator.quality_warnings(svc, ctx, asm, meta)
+    assert any("вне окна" in x for x in w) and any(x.startswith("a:") for x in w)
+    assert not any(x.startswith("hook:") for x in w) and any("заголовок" in x for x in w)
