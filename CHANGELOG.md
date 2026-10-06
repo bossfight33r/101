@@ -10,6 +10,10 @@
 - Блокировка рендера/публикации на видео; `studio notify` и `--notify`; правка после Reject.
 - Контрактные тесты реальных SDK без сети: YouTube (статическая discovery + HttpMock), Analytics, подпись Anthropic `stream`, отправка в бот.
 - `piper` находится в venv без activate; runbook: `python -m piper.download_voices`.
+- Бот: HTML экранируется, длинные сообщения режутся по строкам; прогресс рендера в одном обновляемом сообщении.
+- Повторная публикация перепланирует просроченные слоты; fake-визуалы блокируют финальный approve.
+- Запасные шрифты с кириллицей (Mac/Linux), семейство ASS из файла шрифта; `TS_SANDBOX_READ_ONLY`; Dockerfile для apt/apk.
+- `studio videos` — список видео; прогресс в CLI `render`/`retry`.
 
 ### Фаза 5 — Аналитика и темы
 - `studio track`: published по publishAt, снимки статистики (YouTube Data + опционально Analytics: удержание, средний просмотр, доход).

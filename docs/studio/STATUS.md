@@ -16,17 +16,17 @@
 
 ## Готово
 - CLI `studio`: `doctor`, `topic add|list|import|suggest|accept`, `script new|export|import|approve|regen`,
-  `render [--scene] [--notify]`, `status`, `retry`, `review approve|reject|thumb`, `publish`, `notify`,
+  `videos`, `render [--scene] [--notify]`, `status`, `retry`, `review approve|reject|thumb`, `publish`, `notify`,
   `auth youtube`, `bot`, `track`, `report [--recommendations]`.
 - Сценарий: LLM → Pydantic, валидация (хук ≤ 10 с, длительность, запрещённые фразы, шортсы, mermaid реальным mmdc если есть, policy), YAML round-trip, версии, approve с хешем.
 - Policy песочницы (денилист + секреты + сеть только по флагу; код из `files` проверяется тем же денилистом), Docker-раннер (non-root, без сети, read-only, cap-drop, лимиты, таймаут).
 - Рендереры всех типов в 16:9 и 9:16 нативно; replay через DEBUG trap; `files` — код из code-сцены в `~` песочницы; fallback-слайды с предупреждением.
 - Озвучка, ASR-тайминги, выравнивание к исходному тексту; длинное видео с главами, SRT, музыкой (ducking) и loudnorm −14 LUFS; шортсы с ASS-субтитрами на плашке; 3 миниатюры; превью.
 - Манифесты и resume: retry не переделывает озвучку и визуалы. Блокировка: один рендер/публикация на видео.
-- Бот: гейт 1 и гейт 2, только `TS_ADMIN_IDS`, HTML экранируется, длинные сообщения режутся по строкам; `notify` из CLI.
+- Бот: гейт 1 и гейт 2, только `TS_ADMIN_IDS`, HTML экранируется, длинные сообщения режутся по строкам, прогресс рендера в одном сообщении; `notify` из CLI.
 - Публикация: главы, SRT, миниатюра (экспорт при ошибке), шортсы после длинного, дневные лимиты, перепланирование просроченных слотов при повторе. Видео с fake-визуалами одобрить нельзя.
 - Аналитика: снимки, отчёт по темам/типам сцен/хукам, файл рекомендаций, предложения тем с ручным accept.
-- Тесты: 198 passed, 9 skipped (skip — тесты на реальных vhs/mmdc, включаются `TS_VHS_BIN`, `TS_MERMAID_BIN`).
+- Тесты: 200 passed, 9 skipped (skip — тесты на реальных vhs/mmdc, включаются `TS_VHS_BIN`, `TS_MERMAID_BIN`).
 
 ### Проверено по-настоящему в этом окружении
 - ffmpeg: длинное 1920x1080 + шортсы 1080x1920 + ASS, громкость −14.0 LUFS (ebur128), fade, музыка с ducking.

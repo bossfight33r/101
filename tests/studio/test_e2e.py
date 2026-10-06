@@ -31,7 +31,9 @@ def approved(svc, topic, small_channel):
 
 def test_e2e_long_and_shorts(svc, approved):
     vid = approved.video_id
-    summary = orchestrator.render_video(svc, vid)
+    steps = []
+    summary = orchestrator.render_video(svc, vid, progress=steps.append)
+    assert [x.split()[0] for x in steps] == ["🎙", "🎞", "🧩", "📱", "🏷"]
     rec = svc.db.require_video(vid)
     assert rec.status == VideoStatus.final_review
 

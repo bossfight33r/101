@@ -200,3 +200,16 @@ def test_concurrent_render_blocked(svc, topic):
             orchestrator.render_video(svc, script.video_id)
     # статус не испорчен попыткой
     assert svc.db.require_video(script.video_id).status == VideoStatus.approved
+
+
+def test_cli_videos_list(svc, topic, monkeypatch):
+    from typer.testing import CliRunner
+
+    from techstudio import cli
+
+    monkeypatch.setitem(cli._state, "svc", svc)
+    script, _ = scripts.new_script(svc, topic.id)
+    r = CliRunner().invoke(cli.app, ["videos"])
+    assert r.exit_code == 0 and script.video_id in r.output and "script_review" in r.output
+    r = CliRunner().invoke(cli.app, ["videos", "--status", "approved"])
+    assert script.video_id not in r.output

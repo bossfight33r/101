@@ -218,9 +218,9 @@ def render(
 
     try:
         summary = (
-            orchestrator.rerender_scene(services(), video_id, scene)
+            orchestrator.rerender_scene(services(), video_id, scene, progress=typer.echo)
             if scene
-            else orchestrator.render_video(services(), video_id)
+            else orchestrator.render_video(services(), video_id, progress=typer.echo)
         )
     except orchestrator.NotApprovedError as e:
         fail(f"рендер запрещён: {e}")
@@ -232,6 +232,21 @@ def render(
     _print_summary(summary)
     if notify:
         _notify(video_id)
+
+
+@app.command()
+def videos(status_filter: str | None = typer.Option(None, "--status", help="Фильтр по статусу.")):
+    """Список видео: статус, версия сценария, тема."""
+    from techstudio.schemas import VideoStatus
+
+    svc = services()
+    st = VideoStatus(status_filter) if status_filter else None
+    for v in svc.db.list_videos(st):
+        approved = f"v{v.approved_version}" if v.approved_version else "—"
+        fail_mark = f"  ❌ {v.failure.stage}" if v.failure else ""
+        typer.echo(
+            f"{v.id:38} {v.status.value:13} сценарий v{v.script_version} (одобрен {approved}){fail_mark}"
+        )
 
 
 @app.command()
@@ -270,7 +285,7 @@ def retry_cmd(video_id: str):
     from techstudio.pipeline import orchestrator
 
     try:
-        summary = orchestrator.retry(services(), video_id)
+        summary = orchestrator.retry(services(), video_id, progress=typer.echo)
     except Exception as e:  # noqa: BLE001
         fail(f"retry не удался: {type(e).__name__}: {e}")
     typer.secho("готово → final_review", fg=typer.colors.GREEN)

@@ -27,7 +27,7 @@ class Reply:
     html: bool = False  # True — text в HTML, всё динамическое уже экранировано esc()
 
 
-Job = Callable[[], list[Reply]]
+Job = Callable[..., list[Reply]]  # job(progress=None); progress(str) — обновить статус-сообщение
 
 
 def is_admin(svc: Services, user_id: int | None) -> bool:
@@ -189,12 +189,12 @@ def final_gate(svc: Services, video_id: str) -> list[Reply]:
 
 
 def _render_job(svc: Services, video_id: str, scene_id: str | None = None) -> Job:
-    def job() -> list[Reply]:
+    def job(progress=None) -> list[Reply]:
         try:
             if scene_id:
-                orchestrator.rerender_scene(svc, video_id, scene_id)
+                orchestrator.rerender_scene(svc, video_id, scene_id, progress=progress)
             else:
-                orchestrator.render_video(svc, video_id)
+                orchestrator.render_video(svc, video_id, progress=progress)
         except Exception as e:  # noqa: BLE001 — сообщаем Боссу
             return [
                 Reply(
@@ -246,7 +246,7 @@ def handle_callback(svc: Services, data: str) -> tuple[list[Reply], Job | None]:
 
 
 def _publish_job(svc: Services, video_id: str) -> Job:
-    def job() -> list[Reply]:
+    def job(progress=None) -> list[Reply]:  # noqa: ARG001
         try:
             pubs = publish.publish_video(svc, video_id)
         except Exception as e:  # noqa: BLE001
@@ -313,7 +313,7 @@ def handle_command(svc: Services, command: str, args: list[str]) -> tuple[list[R
         target = args[0]
         if command == "new":
 
-            def job() -> list[Reply]:
+            def job(progress=None) -> list[Reply]:  # noqa: ARG001
                 try:
                     script, _ = scripts.new_script(svc, target)
                 except Exception as e:  # noqa: BLE001
@@ -346,9 +346,9 @@ def handle_command(svc: Services, command: str, args: list[str]) -> tuple[list[R
 
 
 def _retry_job(svc: Services, video_id: str) -> Job:
-    def job() -> list[Reply]:
+    def job(progress=None) -> list[Reply]:
         try:
-            orchestrator.retry(svc, video_id)
+            orchestrator.retry(svc, video_id, progress=progress)
         except Exception as e:  # noqa: BLE001
             return [Reply(text=f"❌ retry {video_id}: {type(e).__name__}: {str(e)[:300]}")]
         return final_gate(svc, video_id)

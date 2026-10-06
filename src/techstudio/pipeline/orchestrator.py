@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fcntl
 import json
+from collections.abc import Callable
 from contextlib import contextmanager
 
 from techstudio.core import log
@@ -84,26 +85,35 @@ def video_lock(svc: Services, video_id: str):
             fcntl.flock(f, fcntl.LOCK_UN)
 
 
-def render_video(svc: Services, video_id: str) -> dict:
-    """approved → voicing → rendering → assembling → final_review. Повтор = resume по манифестам."""
+Progress = Callable[[str], None]
+
+
+def render_video(svc: Services, video_id: str, progress: Progress | None = None) -> dict:
+    """approved → voicing → rendering → assembling → final_review. Повтор = resume по манифестам.
+    progress — колбэк для человека (бот обновляет одно сообщение)."""
     with video_lock(svc, video_id):
-        return _render_video(svc, video_id)
+        return _render_video(svc, video_id, progress or (lambda _msg: None))
 
 
-def _render_video(svc: Services, video_id: str) -> dict:
+def _render_video(svc: Services, video_id: str, progress: Progress) -> dict:
     script = ensure_renderable(svc, video_id)
     ctx = stages.make_ctx(svc, script)
     stage = "voicing"
     try:
         svc.db.update_video(video_id, status=VideoStatus.voicing, failure=None)
+        progress("🎙 Озвучка и тайминги…")
         stages.run_voice(ctx)
         stage = "rendering"
         svc.db.update_video(video_id, status=VideoStatus.rendering)
+        progress("🎞 Визуалы сцен…")
         stages.run_visuals(ctx)
         stage = "assembling"
         svc.db.update_video(video_id, status=VideoStatus.assembling)
+        progress("🧩 Сборка длинного видео…")
         asm = stages.run_long(ctx)
+        progress("📱 Шортсы…")
         short_specs = stages.run_shorts(ctx)
+        progress("🏷 Метаданные, миниатюры, превью…")
         meta = stages.run_metadata(ctx)
         variants = stages.run_thumbnails(ctx, meta)
         preview = stages.run_preview(ctx, asm)
@@ -135,16 +145,18 @@ def _render_video(svc: Services, video_id: str) -> dict:
     return summary
 
 
-def retry(svc: Services, video_id: str) -> dict:
+def retry(svc: Services, video_id: str, progress: Progress | None = None) -> dict:
     rec = svc.db.require_video(video_id)
     if rec.status != VideoStatus.failed:
         raise RuntimeError(f"retry только для failed (сейчас {rec.status.value})")
     if rec.failure and not rec.failure.retryable:
         _log.warning("retry.non_retryable", video_id=video_id, stage=rec.failure.stage)
-    return render_video(svc, video_id)
+    return render_video(svc, video_id, progress)
 
 
-def rerender_scene(svc: Services, video_id: str, scene_id: str) -> dict:
+def rerender_scene(
+    svc: Services, video_id: str, scene_id: str, progress: Progress | None = None
+) -> dict:
     """Перерендер визуала одной сцены (гейт 2): сбрасываем её визуальные этапы и сегменты."""
     script = ensure_renderable(svc, video_id)
     ids = [s.id for s in stages.service_scenes(script, svc.channel.name)]
@@ -159,7 +171,7 @@ def rerender_scene(svc: Services, video_id: str, scene_id: str) -> dict:
             m.invalidate(name)
     m.save(path)
     svc.db.add_review_action(video_id, "final", "rerender_scene", {"scene_id": scene_id})
-    return render_video(svc, video_id)
+    return render_video(svc, video_id, progress)
 
 
 def final_summary(svc: Services, video_id: str) -> dict | None:

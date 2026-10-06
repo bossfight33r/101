@@ -73,10 +73,36 @@ async def send_replies(bot: Bot, chat_id: int, replies: list[logic.Reply]) -> No
                 )
 
 
+def make_progress(bot: Bot, chat_id: int, message_id: int, loop: asyncio.AbstractEventLoop):
+    """Колбэк из рабочего потока: редактирует одно статус-сообщение (последнее значение побеждает)."""
+    done: list[str] = []
+
+    def progress(text: str) -> None:
+        done.append(text)
+        body = (
+            "\n".join(f"✓ {t}" for t in done[:-1]) + ("\n" if len(done) > 1 else "") + f"⏳ {text}"
+        )
+        fut = asyncio.run_coroutine_threadsafe(
+            bot.edit_message_text(body, chat_id=chat_id, message_id=message_id), loop
+        )
+        try:
+            fut.result(timeout=15)
+        except Exception as e:  # noqa: BLE001 — прогресс не критичен
+            _log.warning("bot.progress_failed", error=type(e).__name__)
+
+    return progress
+
+
 async def run_job(bot: Bot, chat_id: int, job) -> None:
     if job is None:
         return
-    replies = await asyncio.to_thread(job)
+    status = await bot.send_message(chat_id, "⏳ в работе…")
+    progress = make_progress(bot, chat_id, status.message_id, asyncio.get_running_loop())
+    replies = await asyncio.to_thread(job, progress=progress)
+    try:
+        await bot.edit_message_text("✅ готово", chat_id=chat_id, message_id=status.message_id)
+    except Exception:  # noqa: BLE001
+        pass
     await send_replies(bot, chat_id, replies)
 
 

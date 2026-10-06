@@ -59,7 +59,8 @@ def test_approve_button_triggers_render_job(svc, topic, monkeypatch):
     script, _ = scripts.new_script(svc, topic.id)
     called = {}
     monkeypatch.setattr(
-        "techstudio.pipeline.orchestrator.render_video", lambda s, v: called.setdefault("vid", v)
+        "techstudio.pipeline.orchestrator.render_video",
+        lambda s, v, progress=None: called.setdefault("vid", v),
     )
     monkeypatch.setattr(logic, "final_gate", lambda s, v: [logic.Reply(text="gate2")])
     replies, job = logic.handle_callback(svc, logic.cb("ok", script.video_id))

@@ -276,3 +276,25 @@ async def test_notify_sends_gate_to_each_admin(svc, topic, monkeypatch):
     assert await handlers.notify(svc, script.video_id, bot=bot) == 2
     chats = {c.args[0] for c in bot.send_message.await_args_list}
     assert chats == {1, 2} and bot.send_document.await_count == 2
+
+
+async def test_run_job_updates_one_status_message():
+    from types import SimpleNamespace
+
+    from techstudio.bot import handlers, logic
+
+    bot = AsyncMock()
+    bot.send_message.return_value = SimpleNamespace(message_id=77)
+
+    def job(progress=None):
+        progress("🎙 Озвучка…")
+        progress("🎞 Визуалы…")
+        return [logic.Reply(text="готово")]
+
+    await handlers.run_job(bot, 5, job)
+    edits = [c.args[0] for c in bot.edit_message_text.await_args_list]
+    assert edits[0] == "⏳ 🎙 Озвучка…"
+    assert edits[1] == "✓ 🎙 Озвучка…\n⏳ 🎞 Визуалы…"
+    assert edits[-1] == "✅ готово"
+    assert all(c.kwargs["message_id"] == 77 for c in bot.edit_message_text.await_args_list)
+    assert bot.send_message.await_args_list[-1].args[1] == "готово"
