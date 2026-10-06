@@ -157,6 +157,8 @@ def test_srt_and_ass():
     ass = captions.to_ass(words, highlight="#22d3ee")
     assert "PlayResY: 1920" in ass and "\\c&H00EED322" in ass
     assert ass.count("Dialogue:") == len(words)
+    assert "\\pos(540,1360)" in ass  # без коллизий libass на стыке событий
+    assert ",3,14,0,2," in ass  # BorderStyle 3: плашка под текстом
 
 
 @needs_ffmpeg

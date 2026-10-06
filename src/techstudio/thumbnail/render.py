@@ -36,14 +36,19 @@ def grab_frame(video: Path, out: Path, at: float) -> Path | None:
 
 
 def _text_block(
-    d: ImageDraw.ImageDraw, text: str, style: ChannelStyle, box: tuple[int, int, int, int], color
+    d: ImageDraw.ImageDraw,
+    text: str,
+    style: ChannelStyle,
+    box: tuple[int, int, int, int],
+    color,
+    stroke=(0, 0, 0),
 ) -> None:
     x0, y0, x1, y1 = box
     fnt, lines = draw.fit_font(text, style.font_bold, x1 - x0, y1 - y0, 150, 56, spacing=1.12)
     line_h = int(fnt.size * 1.12)
     y = y0 + max((y1 - y0 - line_h * len(lines)) // 2, 0)
     for line in lines:
-        d.text((x0, y), line, font=fnt, fill=color, stroke_width=8, stroke_fill=(0, 0, 0))
+        d.text((x0, y), line, font=fnt, fill=color, stroke_width=8, stroke_fill=stroke)
         y += line_h
 
 
@@ -77,7 +82,9 @@ def render_variant(
             img = draw.cover_blur(shot, SIZE, darken=0.25)
             d = ImageDraw.Draw(img)
             d.rectangle([0, int(h * 0.58), w, h], fill=accent)
-            _text_block(d, text, style, (50, int(h * 0.6), w - 50, h - 30), (10, 10, 10))
+            _text_block(
+                d, text, style, (50, int(h * 0.6), w - 50, h - 30), (10, 10, 10), stroke=accent
+            )
     out.parent.mkdir(parents=True, exist_ok=True)
     img.save(out, "JPEG", quality=92)
     return out

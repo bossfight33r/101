@@ -94,6 +94,7 @@ def to_ass(
     margin_v: int = 560,
 ) -> str:
     """Пословная подсветка: на каждое слово группы — событие, где текущее слово окрашено.
+    BorderStyle 3 — полупрозрачная плашка, текст читается поверх любого визуала.
     margin_v держит текст выше нижней UI-зоны Shorts (safe zone)."""
     header = f"""[Script Info]
 ScriptType: v4.00+
@@ -104,14 +105,14 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,{font},{size},{_ass_color(color)},{_ass_color(color)},&H00000000,&H64000000,-1,0,0,0,100,100,0,0,1,5,2,2,80,80,{margin_v},1
+Style: Default,{font},{size},{_ass_color(color)},{_ass_color(color)},&H60000000,&H60000000,-1,0,0,0,100,100,0,0,3,14,0,2,60,60,{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     hl = _ass_color(highlight)
     lines = []
-    for cue in group_words(words, max_chars=22, max_sec=2.5, max_words=4):
+    for cue in group_words(words, max_chars=18, max_sec=2.5, max_words=4):
         for i, w in enumerate(cue.words):
             start = w.start if i else cue.start
             end = cue.words[i + 1].start if i + 1 < len(cue.words) else cue.end
@@ -121,8 +122,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             for j, x in enumerate(cue.words):
                 t = _ass_escape(x.text)
                 parts.append(f"{{\\c{hl}}}{t}{{\\c{_ass_color(color)}}}" if j == i else t)
+            # явная позиция: события на стыке (end == start следующего) не раздвигаются libass
+            pos = f"{{\\an2\\pos({width // 2},{height - margin_v})}}"
             lines.append(
-                f"Dialogue: 0,{_ts_ass(start)},{_ts_ass(end)},Default,,0,0,0,,{' '.join(parts)}"
+                f"Dialogue: 0,{_ts_ass(start)},{_ts_ass(end)},Default,,0,0,0,,{pos}{' '.join(parts)}"
             )
     return header + "\n".join(lines) + "\n"
 
