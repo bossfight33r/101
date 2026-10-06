@@ -185,3 +185,83 @@ def script_regen(video_id: str, scene_id: str, note: str = typer.Option("", "--n
         fail(str(e))
     typer.echo(f"сцена {scene_id} переписана: v{script.version}")
     _print_report(report)
+
+
+# ---------------- render / status / retry ----------------
+
+
+def _print_summary(summary: dict) -> None:
+    long = summary["long"]
+    typer.echo(
+        f"длинное: {long['long_key']}  {long['duration'] / 60:.1f} мин  глав: {len(long['chapters'])}"
+    )
+    for s in summary["shorts"]:
+        typer.echo(f"шортс {s['id']}: {s['duration']:.0f} с  {s['video_key']}")
+    typer.echo("миниатюры: " + ", ".join(f"{t['id']}={t['text']}" for t in summary["thumbnails"]))
+    for w in summary["warnings"]:
+        typer.secho(f"  ⚠ {w}", fg=typer.colors.YELLOW)
+    typer.echo(f"этапов выполнено: {len(summary['ran'])}, из кеша: {len(summary['cache_hits'])}")
+
+
+@app.command()
+def render(
+    video_id: str, scene: str | None = typer.Option(None, "--scene", help="Перерендер одной сцены.")
+):
+    """Озвучка → визуалы → сборка (только после approve сценария)."""
+    from techstudio.pipeline import orchestrator
+
+    try:
+        summary = (
+            orchestrator.rerender_scene(services(), video_id, scene)
+            if scene
+            else orchestrator.render_video(services(), video_id)
+        )
+    except orchestrator.NotApprovedError as e:
+        fail(f"рендер запрещён: {e}")
+    except Exception as e:  # noqa: BLE001
+        fail(f"рендер упал: {type(e).__name__}: {e}\nпосле исправления: studio retry {video_id}")
+    typer.secho("готово → final_review", fg=typer.colors.GREEN)
+    _print_summary(summary)
+
+
+@app.command()
+def status(video_id: str, as_json: bool = typer.Option(False, "--json")):
+    """Статус видео, ошибка этапа, история переходов."""
+    svc = services()
+    rec = svc.db.get_video(video_id)
+    if rec is None:
+        fail(f"видео {video_id} не найдено")
+    events = svc.db.video_events(video_id)
+    if as_json:
+        typer.echo(
+            json.dumps(
+                {"video": rec.model_dump(mode="json"), "events": events},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return
+    typer.echo(
+        f"{rec.id}: {rec.status.value}  сценарий v{rec.script_version}  одобрен v{rec.approved_version}"
+    )
+    if rec.failure:
+        f = rec.failure
+        typer.secho(
+            f"ошибка на этапе {f.stage}: {f.error_type}: {f.message} (retryable={f.retryable})",
+            fg=typer.colors.RED,
+        )
+    for e in events:
+        typer.echo(f"  {e['ts'][:19]}  {e['from_status'] or '-'} → {e['to_status']}")
+
+
+@app.command("retry")
+def retry_cmd(video_id: str):
+    """Повторить упавший рендер: готовые этапы берутся из кеша."""
+    from techstudio.pipeline import orchestrator
+
+    try:
+        summary = orchestrator.retry(services(), video_id)
+    except Exception as e:  # noqa: BLE001
+        fail(f"retry не удался: {type(e).__name__}: {e}")
+    typer.secho("готово → final_review", fg=typer.colors.GREEN)
+    _print_summary(summary)

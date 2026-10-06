@@ -295,3 +295,11 @@ def test_sandbox_timeout_kills_container(tmp_path):
 def test_fake_renderer(env, aspect, w, h):
     r = FakeRenderer(env).render(SlideScene(id="f", narration="n", title="T"), aspect, 1.5)
     _valid(env, r, w, h, 1.5)
+
+
+def test_fit_font_never_breaks_words():
+    from techstudio.render import draw
+
+    st = ChannelStyle()
+    fnt, lines = draw.fit_font("ЗА 5 МИНУТ", st.font_bold, 550, 600, 150, 40)
+    assert "МИНУТ" in lines

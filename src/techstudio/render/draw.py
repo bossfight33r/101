@@ -64,7 +64,8 @@ def fit_font(
     while True:
         fnt = font(path, size)
         lines = wrap(text, fnt, max_width)
-        if len(lines) * size * spacing <= max_height or size <= minimum:
+        words_fit = all(fnt.getlength(w) <= max_width for w in text.split())
+        if (words_fit and len(lines) * size * spacing <= max_height) or size <= minimum:
             return fnt, lines
         size -= 2
 

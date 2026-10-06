@@ -45,5 +45,8 @@ def configure(json: bool = False, verbose: bool = False) -> None:
     )
 
 
+structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
+
+
 def get(name: str = "techstudio"):
     return structlog.get_logger(name)

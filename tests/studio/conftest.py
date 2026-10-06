@@ -46,3 +46,13 @@ def topic(svc):
     )
     svc.db.upsert_topic(t)
     return t
+
+
+@pytest.fixture
+def small_channel(settings):
+    """Канал с коротким окном длительности — e2e быстрее (реальный ffmpeg)."""
+    from techstudio.schemas import LongformTarget
+
+    ch = settings.channel.model_copy(update={"longform": LongformTarget(min_sec=40, max_sec=200)})
+    settings.__dict__["channel"] = ch
+    return ch

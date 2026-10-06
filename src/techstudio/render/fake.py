@@ -1,4 +1,4 @@
-"""Фейковый рендерер: ffmpeg testsrc2 нужного размера. Для тестов и окружений без VHS/mermaid."""
+"""Фейковый рендерер: ffmpeg color (дёшево) нужного размера. Для тестов и окружений без VHS/mermaid."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ class FakeRenderer:
                 "-f",
                 "lavfi",
                 "-i",
-                f"testsrc2=size={w}x{h}:rate={FPS}:duration={dur:.3f}",
+                f"color=c=0x1e293b:size={w}x{h}:rate={FPS}:duration={dur:.3f}",
                 *self.env.encoder.args(fps=FPS),
                 "-an",
                 str(out),
