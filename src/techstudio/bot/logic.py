@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from techstudio.pipeline import orchestrator, publish, review, scripts
+from techstudio.render.fake import has_fake
 from techstudio.schemas import VideoStatus
 from techstudio.script.io import ScriptParseError
 from techstudio.services import Services
@@ -162,7 +163,10 @@ def final_gate(svc: Services, video_id: str) -> list[Reply]:
         for t in thumbs
     ]
     buttons = [thumb_row]
-    if rec.thumbnail_id:
+    fake = has_fake(summary["warnings"]) and not svc.settings.allow_fake_publish
+    if fake:
+        lines.append("⛔ Есть fake-визуалы — публикация недоступна, нужен перерендер с Docker.")
+    elif rec.thumbnail_id:
         buttons.append([("✅ Approve и публикация", cb("fa", video_id))])
     buttons.append(
         [("❌ Reject", cb("fr", video_id)), ("🔁 Перерендер сцены", cb("rrm", video_id))]

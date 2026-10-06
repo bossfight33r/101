@@ -16,21 +16,32 @@
 
 ## Готово
 - CLI `studio`: `doctor`, `topic add|list|import|suggest|accept`, `script new|export|import|approve|regen`,
-  `render [--scene]`, `status`, `retry`, `review approve|reject|thumb`, `publish`, `auth youtube`, `bot`, `track`, `report [--recommendations]`.
-- Сценарий: LLM → Pydantic, валидация (хук ≤ 10 с, длительность, запрещённые фразы, шортсы, mermaid, policy), YAML round-trip, версии, approve с хешем.
-- Policy песочницы (денилист + секреты + сеть только по флагу), Docker-раннер (non-root, без сети, read-only, лимиты, таймаут).
-- Рендереры всех типов в 16:9 и 9:16 нативно; replay через DEBUG trap; fallback-слайды с предупреждением.
-- Озвучка, ASR-тайминги, выравнивание к исходному тексту; длинное видео с главами, SRT, музыкой и loudnorm; шортсы с ASS; 3 миниатюры; превью.
-- Манифесты и resume: retry не переделывает озвучку и визуалы.
-- Бот: гейт 1 и гейт 2, только `TS_ADMIN_IDS`. Публикация с главами, SRT, миниатюрой (экспорт при ошибке), шортсы после длинного, дневные лимиты.
+  `render [--scene] [--notify]`, `status`, `retry`, `review approve|reject|thumb`, `publish`, `notify`,
+  `auth youtube`, `bot`, `track`, `report [--recommendations]`.
+- Сценарий: LLM → Pydantic, валидация (хук ≤ 10 с, длительность, запрещённые фразы, шортсы, mermaid реальным mmdc если есть, policy), YAML round-trip, версии, approve с хешем.
+- Policy песочницы (денилист + секреты + сеть только по флагу; код из `files` проверяется тем же денилистом), Docker-раннер (non-root, без сети, read-only, cap-drop, лимиты, таймаут).
+- Рендереры всех типов в 16:9 и 9:16 нативно; replay через DEBUG trap; `files` — код из code-сцены в `~` песочницы; fallback-слайды с предупреждением.
+- Озвучка, ASR-тайминги, выравнивание к исходному тексту; длинное видео с главами, SRT, музыкой (ducking) и loudnorm −14 LUFS; шортсы с ASS-субтитрами на плашке; 3 миниатюры; превью.
+- Манифесты и resume: retry не переделывает озвучку и визуалы. Блокировка: один рендер/публикация на видео.
+- Бот: гейт 1 и гейт 2, только `TS_ADMIN_IDS`, HTML экранируется, длинные сообщения режутся по строкам; `notify` из CLI.
+- Публикация: главы, SRT, миниатюра (экспорт при ошибке), шортсы после длинного, дневные лимиты, перепланирование просроченных слотов при повторе. Видео с fake-визуалами одобрить нельзя.
 - Аналитика: снимки, отчёт по темам/типам сцен/хукам, файл рекомендаций, предложения тем с ручным accept.
-- Реально проверено в Linux-контейнере: ffmpeg-сборка (длинное 1920x1080 + шортсы 1080x1920 + ASS), рендеры code/slide/image/fallback, replay-трюк в интерактивном bash.
+- Тесты: 198 passed, 9 skipped (skip — тесты на реальных vhs/mmdc, включаются `TS_VHS_BIN`, `TS_MERMAID_BIN`).
+
+### Проверено по-настоящему в этом окружении
+- ffmpeg: длинное 1920x1080 + шортсы 1080x1920 + ASS, громкость −14.0 LUFS (ebur128), fade, музыка с ducking.
+- Рендеры code/slide/image/fallback; кадры просмотрены, кириллица ок.
+- mermaid-cli 12 (npm + локальный Chromium): рендер схем в обеих ориентациях, проверка синтаксиса — нашёл и исправил несовместимые флаги `-w/-H`.
+- `vhs validate` (VHS собран из исходников): все варианты tape валидны — нашёл и исправил `Output` без кавычек.
+- replay-трюк (extdebug + DEBUG trap) в интерактивном bash.
+- piper-tts 1.8: наши флаги принимаются CLI; faster-whisper 1.2: сигнатуры совпадают.
+- YouTube Data/Analytics: тела запросов через статическую discovery + HttpMock; Anthropic SDK: параметры `beta.messages.stream` сверены с сигнатурой.
 
 ## Не готово / ограничения
-- Live-команды выполняются в пустом `~` контейнера; файлов из сценария туда не кладём (ADR 0004).
-- `TS_RENDERERS=auto` без Docker даёт fake-терминал (с предупреждением на ревью). Для продакшена — `TS_RENDERERS=real`.
+- Docker-песочница, VHS-рендер, голос Piper и модель whisper здесь не запускались: запуск dockerd и скачивание ttyd запрещены политикой окружения, HuggingFace закрыт сетью. Всё — в «Проверить на Маке».
+- `TS_RENDERERS=auto` без Docker даёт fake-терминал; такое видео дойдёт до ревью, но финальный approve заблокирован. Для продакшена — `TS_RENDERERS=real`.
 - Очередь inline (без Redis): рендер в процессе CLI/бота.
-- Бот отправляет файлы ≤ 50 МБ (лимит Bot API) — длинное видео идёт как сжатое превью 360p.
+- Бот отправляет файлы ≤ 50 МБ (лимит Bot API) — длинное видео идёт как превью 360p.
 - mlx-whisper-бэкенд написан по документации, не запускался.
 
 ## Блокеры
@@ -53,7 +64,8 @@ make test
 TS_RENDERERS=real .venv/bin/studio render <ID>
 open data/studio/videos/<ID>/scenes/*/visual_16x9.mp4
 #   проверить: терминал показывает настоящий вывод ss; VHS под uid 1000 с --read-only стартует
-#   (если chromium падает — убрать --read-only в sandbox/docker.py или дать tmpfs ~/.cache), 9:16 читаем
+#   (если Chromium падает — TS_SANDBOX_READ_ONLY=false, остальная изоляция остаётся), 9:16 читаем
+#   сцена с files (тема python-ping-sweep): python3 sweep.py реально выполняется в контейнере
 
 # 2. Сеть выключена
 docker run --rm --network none techstudio-sandbox:latest --help >/dev/null; echo ok

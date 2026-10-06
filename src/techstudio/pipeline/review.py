@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from techstudio.pipeline import orchestrator
+from techstudio.render.fake import has_fake
 from techstudio.schemas import VideoStatus
 from techstudio.services import Services
 
@@ -35,6 +36,11 @@ def approve(svc: Services, video_id: str, thumbnail: str | None = None) -> None:
         rec = svc.db.require_video(video_id)
     if not rec.thumbnail_id:
         raise ReviewError("выбери миниатюру (A/B/C)")
+    if has_fake(_summary(svc, video_id)["warnings"]) and not svc.settings.allow_fake_publish:
+        raise ReviewError(
+            "в видео фейковые визуалы (нет Docker-песочницы) — публиковать нельзя: "
+            "TS_RENDERERS=real и studio render --scene …"
+        )
     svc.db.update_video(video_id, final_approved=True)
     svc.db.add_review_action(video_id, "final", "approve", {"thumbnail": rec.thumbnail_id})
 

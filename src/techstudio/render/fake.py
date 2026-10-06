@@ -6,6 +6,12 @@ from techstudio.core import ffmpeg
 from techstudio.render.base import FPS, RenderEnv, finish, size_of
 from techstudio.schemas import Aspect, SceneRender
 
+FAKE_WARNING = "fake-визуал"
+
+
+def has_fake(warnings: list[str]) -> bool:
+    return any(FAKE_WARNING in w for w in warnings)
+
 
 class FakeRenderer:
     name = "fake"
@@ -36,4 +42,4 @@ class FakeRenderer:
                 str(out),
             ]
         )
-        return finish(self.env, scene.id, aspect, out, warnings=["fake-визуал"])
+        return finish(self.env, scene.id, aspect, out, warnings=[FAKE_WARNING])

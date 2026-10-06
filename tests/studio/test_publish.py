@@ -322,3 +322,19 @@ def test_retry_after_long_uploaded_replans_only_stale_shorts(svc, ready):
     assert (
         len([u for u in pub.uploads if "#shorts" not in u["title"]]) == 1
     )  # длинное не перезалито
+
+
+def test_fake_visuals_block_final_approve(svc, ready):
+    data = json.loads(svc.storage.read_text(f"videos/{ready}/final_review.json"))
+    data["warnings"] = ["cmd1 16x9: fake-визуал"]
+    svc.storage.write_text(f"videos/{ready}/final_review.json", json.dumps(data))
+    with pytest.raises(review.ReviewError, match="фейковые"):
+        review.approve(svc, ready, "A")
+    from techstudio.bot import logic
+
+    gate = logic.final_gate(svc, ready)[-1]
+    assert "публикация недоступна" in gate.text
+    assert not any("публикация" in b[0] for row in gate.buttons for b in row)
+    svc.settings.allow_fake_publish = True  # явный отладочный флаг
+    review.approve(svc, ready, "A")
+    assert svc.db.require_video(ready).final_approved
