@@ -50,6 +50,7 @@ ignore = ["B008", "E501"]
 "src/techstudio/sandbox/docker.py" = ["S603"]
 "src/techstudio/voice/piper.py" = ["S603"]
 "src/techstudio/render/diagram.py" = ["S603"]
+"src/techstudio/render/terminal.py" = ["S603"]
 "src/techstudio/doctor.py" = ["S603"]
 
 [tool.pytest.ini_options]

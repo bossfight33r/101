@@ -38,9 +38,10 @@ def build_renderers(svc, env: RenderEnv) -> dict:
             terminal = FakeRenderer(env)
             terminal.name = "fake-terminal"
         else:
-            terminal = TerminalRenderer(env, sandbox)
+            terminal = TerminalRenderer(env, sandbox, vhs_bin=s.vhs_bin)
         runner = svc.overrides.get(
-            "mermaid_runner", find_runner(s.mermaid_bin, s.docker_bin, s.mermaid_image)
+            "mermaid_runner",
+            find_runner(s.mermaid_bin, s.docker_bin, s.mermaid_image, s.mermaid_puppeteer_config),
         )
         out = {
             "terminal": terminal,

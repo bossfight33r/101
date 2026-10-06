@@ -54,12 +54,16 @@ class Settings(BaseSettings):
 
     docker_bin: str = "docker"
     sandbox_image: str = "techstudio-sandbox:latest"
+    vhs_bin: str = "vhs"  # локальный vhs — только для `vhs validate` tape, команды не выполняет
     sandbox_cpus: float = 1.0
     sandbox_memory: str = "1g"
     sandbox_pids: int = 256
     sandbox_timeout: int = 300
     mermaid_image: str = "minlag/mermaid-cli:latest"
     mermaid_bin: str = "mmdc"
+    mermaid_puppeteer_config: str | None = (
+        None  # JSON для mmdc -p (executablePath, --no-sandbox под root)
+    )
 
     publisher: Literal["youtube", "fake"] = "youtube"
     collector: Literal["youtube", "fake"] = "youtube"

@@ -139,6 +139,13 @@ NETWORK_TOOLS = re.compile(
 )
 
 
+# сетевые вызовы в коде файлов (python/sh), исполняемых в live-сцене
+NETWORK_CODE = re.compile(
+    r"\b(?:requests\.(?:get|post|put|delete|head)|urllib\.request|urlopen|httpx\.|aiohttp|socket\.create_connection|"
+    r"subprocess\.\w+\(\s*\[\s*[\"'](?:curl|wget|ping|dig|nslookup|ssh)[\"'])",
+)
+
+
 @dataclass(frozen=True)
 class Violation:
     scene_id: str
@@ -189,6 +196,34 @@ def check_script(script) -> list[Violation]:
             for rule in SECRET_RULES:
                 if rule.pattern.search(scene.code):
                     out.append(Violation(scene.id, "<code>", rule.id, rule.message, rule.severity))
+        # код из files выполняется в песочнице — те же запреты, что и для команд
+        for name, src in getattr(scene, "files", {}).items():
+            code = script.scene(src).code
+            for line in code.splitlines():
+                # os.system("rm -rf /") / run(["rm", "-rf", "/"]) → ;rm -rf /;
+                as_cmd = re.sub(r"[\"']\s*,\s*[\"']", " ", line)
+                as_cmd = re.sub(r"[\"'\[\]]", ";", as_cmd)
+                for rule in RULES:
+                    if rule.pattern.search(as_cmd):
+                        out.append(
+                            Violation(
+                                scene.id,
+                                f"{name}: {line.strip()[:80]}",
+                                rule.id,
+                                rule.message,
+                                rule.severity,
+                            )
+                        )
+                if not scene.network and NETWORK_CODE.search(line):
+                    out.append(
+                        Violation(
+                            scene.id,
+                            f"{name}: {line.strip()[:80]}",
+                            "needs-network",
+                            "код ходит в сеть: нужен network: true",
+                            "error",
+                        )
+                    )
     return out
 
 

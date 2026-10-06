@@ -183,6 +183,8 @@ def run_voice(ctx: VideoCtx) -> None:
 
 def _asset_inputs(ctx: VideoCtx, scene) -> list:
     st = ctx.svc.storage
+    if scene.type == "terminal" and scene.files:
+        return [ctx.script.files_for(scene)]
     if scene.type == "image":
         p = st.path(scene.asset_key)
         return [p if p.exists() else f"missing:{scene.asset_key}"]
@@ -233,6 +235,8 @@ def _render_one(ctx: VideoCtx, scene, aspect: str) -> SceneRender:
         rendered = r.render(
             scene, aspect, target, subtitle=ctx.svc.channel.name if scene.id == "outro" else ""
         )
+    elif scene.type == "terminal" and scene.files:
+        rendered = r.render(scene, aspect, target, files=ctx.script.files_for(scene))
     else:
         rendered = r.render(scene, aspect, target)
     raw = ctx.svc.storage.path(rendered.video_key)

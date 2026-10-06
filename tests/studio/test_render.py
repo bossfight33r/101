@@ -1,3 +1,5 @@
+import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -303,3 +305,142 @@ def test_fit_font_never_breaks_words():
     st = ChannelStyle()
     fnt, lines = draw.fit_font("ЗА 5 МИНУТ", st.font_bold, 550, 600, 150, 40)
     assert "МИНУТ" in lines
+
+
+VHS = shutil.which(os.environ.get("TS_VHS_BIN", "vhs"))
+
+
+@pytest.mark.skipif(VHS is None, reason="нет vhs (TS_VHS_BIN)")
+@pytest.mark.parametrize("aspect", ["16x9", "9x16"])
+@pytest.mark.parametrize(
+    "scene",
+    [
+        TerminalScene(
+            id="a",
+            narration="n",
+            commands=["ss -tuln", 'echo "hi there"', "grep -r 'listen' /etc | head"],
+        ),
+        TerminalScene(
+            id="b", narration="n", commands=["opkg update"], mode="replay", replay_output_key="k"
+        ),
+        TerminalScene(id="c", narration="n", commands=["printf '%s\\n' \"a b\""], typing_speed=30),
+        TerminalScene(
+            id="d", narration="n", commands=["curl -sI https://example.com | head -3"], network=True
+        ),
+    ],
+)
+def test_tape_passes_real_vhs_validate(tmp_path, scene, aspect):
+    from techstudio.render.terminal import validate_tape
+
+    tape = tmp_path / "scene.tape"
+    tape.write_text(build_tape(scene, aspect, 9.0, "Dracula"))
+    assert validate_tape(tape, VHS) is None
+
+
+def test_orient_vertical_flowchart():
+    from techstudio.render.diagram import orient
+
+    assert orient("flowchart LR\n A-->B", "9x16").startswith("flowchart TD")
+    assert orient("graph RL; A-->B", "9x16").startswith("graph BT")
+    assert orient("flowchart LR\n A-->B", "16x9").startswith("flowchart LR")
+    assert orient("sequenceDiagram\n A->>B: x", "9x16").startswith("sequenceDiagram")
+
+
+def test_mermaid_error_summary_strips_stacktrace():
+    from techstudio.render.diagram import error_summary
+
+    out = "Generating\n\nError: Parse error on line 2:\nA--> -->B[\n---^\nExpecting 'X', got 'LINK'\nParser.parse (https://x/chunk.mjs:1:2)\n    at async Foo (file:///a.js:3:4)\n"
+    s = error_summary(out)
+    assert s.startswith("Error: Parse error") and "got 'LINK'" in s and ".mjs" not in s
+
+
+MMDC = os.environ.get("TS_MERMAID_BIN")
+MMDC_PPTR = os.environ.get("TS_MERMAID_PUPPETEER_CONFIG")
+
+
+@pytest.mark.skipif(not MMDC, reason="реальный mmdc: TS_MERMAID_BIN (+TS_MERMAID_PUPPETEER_CONFIG)")
+def test_real_mermaid_render_and_checker(env):
+    from techstudio.render.diagram import LocalMmdc, make_checker
+
+    runner = LocalMmdc(MMDC, puppeteer_config=MMDC_PPTR)
+    sc = DiagramScene(
+        id="dr",
+        narration="n",
+        mermaid="flowchart LR\n A[Ноутбук] --> B[Роутер]\n B --> C((Интернет))",
+    )
+    for aspect, w, h in ASPECTS:
+        r = DiagramRenderer(env, runner).render(sc, aspect, 2.0)
+        _valid(env, r, w, h, 2.0)
+        assert not r.warnings
+    check = make_checker(runner)
+    assert check("graph TD; A-->B") is None
+    assert "Parse error" in check("flowchart LR\n A--> -->B[")
+
+
+def test_terminal_live_files_from_code_scene(env):
+    from techstudio.schemas import Script
+
+    script = Script(
+        video_id="v",
+        topic_id="t",
+        title="T",
+        hook="h",
+        scenes=[
+            {
+                "type": "code",
+                "id": "sweep",
+                "narration": "n",
+                "language": "python",
+                "code": "print('up')\n",
+            },
+            {
+                "type": "terminal",
+                "id": "run",
+                "narration": "n",
+                "commands": ["python3 sweep.py"],
+                "files": {"sweep.py": "sweep"},
+            },
+        ],
+    )
+    runner = FakeVhsRunner()
+    term = script.scene("run")
+    TerminalRenderer(env, DockerSandbox(runner=runner)).render(
+        term, "16x9", 3.0, files=script.files_for(term)
+    )
+    work = env.scene_dir("run") / "vhs_16x9"
+    assert (work / "files" / "sweep.py").read_text() == "print('up')\n"
+    assert 'Type "cp -r /out/files/. ~/ && cd ~ && clear"' in (work / "scene.tape").read_text()
+    with pytest.raises(SandboxError, match="нет содержимого"):
+        TerminalRenderer(env, DockerSandbox(runner=runner)).render(term, "16x9", 3.0)
+
+
+def test_files_must_reference_code_scene():
+    from pydantic import ValidationError
+
+    from techstudio.schemas import Script
+
+    base = {"video_id": "v", "topic_id": "t", "title": "T", "hook": "h"}
+    with pytest.raises(ValidationError, match="code-сцена"):
+        Script(
+            **base,
+            scenes=[
+                {
+                    "type": "terminal",
+                    "id": "a",
+                    "narration": "n",
+                    "commands": ["ls"],
+                    "files": {"x.py": "nope"},
+                }
+            ],
+        )
+    with pytest.raises(ValidationError, match="без папок"):
+        TerminalScene(id="a", narration="n", commands=["ls"], files={"../x.py": "c"})
+    with pytest.raises(ValidationError, match="только для mode=live"):
+        TerminalScene(
+            id="a",
+            narration="n",
+            commands=["ls"],
+            mode="replay",
+            replay_output_key="k",
+            files={"x.py": "c"},
+        )

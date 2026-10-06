@@ -4,17 +4,26 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from techstudio.config import VoiceConfig
 from techstudio.voice.base import TTSError
 
 
+def resolve_bin(binary: str) -> str:
+    """`piper` из PATH, иначе из того же venv, что и интерпретатор (venv без activate)."""
+    if shutil.which(binary):
+        return binary
+    sibling = Path(sys.executable).parent / binary
+    return str(sibling) if sibling.exists() else binary
+
+
 class PiperTTS:
     name = "piper"
 
     def __init__(self, binary: str = "piper", timeout: int = 600):
-        self.binary = binary
+        self.binary = resolve_bin(binary)
         self.timeout = timeout
 
     def available(self) -> bool:

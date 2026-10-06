@@ -20,7 +20,7 @@ class FakeRenderer:
     def min_duration(self, scene) -> float:
         return self.min_sec
 
-    def render(self, scene, aspect: Aspect, duration_hint: float) -> SceneRender:
+    def render(self, scene, aspect: Aspect, duration_hint: float, **_kw) -> SceneRender:
         self.calls.append((scene.id, aspect))
         w, h = size_of(aspect)
         dur = max(duration_hint * self.duration_factor, 0.5)

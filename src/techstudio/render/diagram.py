@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import tempfile
@@ -21,6 +22,20 @@ class MermaidError(RuntimeError):
     pass
 
 
+def error_summary(output: str, default: str = "mermaid-cli failed") -> str:
+    """Из вывода mmdc — строки ошибки до стектрейса (Parse error, позиция, ожидалось)."""
+    lines = [ln.rstrip() for ln in output.splitlines()]
+    start = next((i for i, ln in enumerate(lines) if "error" in ln.lower()), None)
+    if start is None:
+        return output.strip()[-300:] or default
+    out = []
+    for ln in lines[start:]:
+        if ln.lstrip().startswith("at ") or ".mjs:" in ln or ".js:" in ln:
+            break
+        out.append(ln)
+    return "\n".join(out)[:400] or default
+
+
 class MermaidRunner(Protocol):
     name: str
 
@@ -28,44 +43,37 @@ class MermaidRunner(Protocol):
 
 
 def _mmdc_args(inp: str, out: str, width: int, height: int) -> list[str]:
-    return [
-        "-i",
-        inp,
-        "-o",
-        out,
-        "-w",
-        str(width),
-        "-H",
-        str(height),
-        "-b",
-        "transparent",
-        "-t",
-        "dark",
-        "-s",
-        "2",
-    ]
+    """Флаги, общие для mmdc 10–12 (в 12 нет -w/-H). Размер под кадр подгоняет Pillow; scale — чёткость."""
+    scale = 3 if max(width, height) >= 1500 else 2
+    return ["-i", inp, "-o", out, "-b", "transparent", "-t", "dark", "-s", str(scale)]
 
 
 class LocalMmdc:
     name = "mmdc"
 
-    def __init__(self, binary: str = "mmdc", timeout: int = 120):
+    def __init__(
+        self, binary: str = "mmdc", timeout: int = 120, puppeteer_config: str | None = None
+    ):
         self.binary = binary
         self.timeout = timeout
+        self.puppeteer_config = puppeteer_config
 
     def render_png(self, source: str, out: Path, width: int, height: int) -> Path:
         out.parent.mkdir(parents=True, exist_ok=True)
         src = out.with_suffix(".mmd")
         src.write_text(source, encoding="utf-8")
+        extra = ["-p", self.puppeteer_config] if self.puppeteer_config else []
         proc = subprocess.run(
-            [self.binary, *_mmdc_args(str(src), str(out), width, height)],
+            [self.binary, *_mmdc_args(str(src), str(out), width, height), *extra],
             capture_output=True,
             text=True,
             timeout=self.timeout,
             check=False,
         )
         if proc.returncode != 0 or not out.exists():
-            raise MermaidError((proc.stderr or proc.stdout).strip()[-400:] or "mmdc failed")
+            raise MermaidError(
+                error_summary((proc.stderr or "") + (proc.stdout or ""), "mmdc failed")
+            )
         return out
 
 
@@ -116,15 +124,29 @@ class DockerMmdc:
         )
         produced = workdir / "diagram.png"
         if proc.returncode != 0 or not produced.exists():
-            raise MermaidError((proc.stderr or proc.stdout).strip()[-400:] or "mermaid-cli failed")
+            raise MermaidError(error_summary((proc.stderr or "") + (proc.stdout or "")))
         if produced != out:
             shutil.move(produced, out)
         return out
 
 
-def find_runner(mermaid_bin: str, docker_bin: str, image: str) -> MermaidRunner | None:
+_DIRECTION = re.compile(r"^(\s*(?:graph|flowchart))\s+(LR|RL)\b", re.M)
+
+
+def orient(source: str, aspect: str) -> str:
+    """9:16: горизонтальные flowchart (LR/RL) разворачиваем вертикально (TD/BT) — иначе мелко."""
+    if aspect != "9x16":
+        return source
+    return _DIRECTION.sub(
+        lambda m: f"{m.group(1)} {'TD' if m.group(2) == 'LR' else 'BT'}", source, count=1
+    )
+
+
+def find_runner(
+    mermaid_bin: str, docker_bin: str, image: str, puppeteer_config: str | None = None
+) -> MermaidRunner | None:
     if shutil.which(mermaid_bin):
-        return LocalMmdc(mermaid_bin)
+        return LocalMmdc(mermaid_bin, puppeteer_config=puppeteer_config)
     if shutil.which(docker_bin):
         try:
             proc = subprocess.run(
@@ -179,7 +201,7 @@ class DiagramRenderer:
         try:
             if self.runner is None:
                 raise MermaidError("mermaid-cli недоступен")
-            raw = self.runner.render_png(scene.mermaid, sdir / "mermaid.png", w, h)
+            raw = self.runner.render_png(orient(scene.mermaid, aspect), sdir / "mermaid.png", w, h)
             png = draw.save(self.compose(raw, aspect), sdir / "diagram.png")
         except (MermaidError, OSError, subprocess.TimeoutExpired) as e:
             lines = [ln.strip() for ln in scene.mermaid.splitlines()[1:] if ln.strip()]

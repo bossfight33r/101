@@ -66,6 +66,16 @@ def check_docker(s: Settings) -> list[Check]:
     return checks
 
 
+def check_vhs_local(s: Settings) -> Check:
+    return Check(
+        "vhs локально (validate)",
+        shutil.which(s.vhs_bin) is not None,
+        s.vhs_bin,
+        "brew install vhs — для проверки tape до Docker",
+        required=False,
+    )
+
+
 def check_mermaid(s: Settings) -> Check:
     if shutil.which(s.mermaid_bin):
         return Check("mermaid-cli", True, f"локальный {s.mermaid_bin}")
@@ -82,11 +92,14 @@ def check_mermaid(s: Settings) -> Check:
 
 
 def check_piper(s: Settings) -> list[Check]:
+    from techstudio.voice.piper import resolve_bin
+
+    piper_bin = resolve_bin(s.piper_bin)
     checks = [
         Check(
             "piper",
-            shutil.which(s.piper_bin) is not None,
-            s.piper_bin,
+            shutil.which(piper_bin) is not None,
+            piper_bin,
             "uv pip install piper-tts (или бинарь piper)",
         )
     ]
@@ -169,6 +182,7 @@ def run_all(s: Settings) -> list[Check]:
     return [
         *check_ffmpeg(),
         *check_docker(s),
+        check_vhs_local(s),
         check_mermaid(s),
         *check_piper(s),
         *check_fonts(s),

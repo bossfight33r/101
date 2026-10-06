@@ -157,3 +157,76 @@ def test_srt_and_ass():
     ass = captions.to_ass(words, highlight="#22d3ee")
     assert "PlayResY: 1920" in ass and "\\c&H00EED322" in ass
     assert ass.count("Dialogue:") == len(words)
+
+
+@needs_ffmpeg
+def test_music_ducking_and_loudnorm(tmp_path):
+    visual = _color(tmp_path / "v.mp4", 1920, 1080, 3.0)
+    voice = tmp_path / "n.wav"
+    ffmpeg.run(
+        [
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=300:duration=2",
+            "-ar",
+            "48000",
+            "-ac",
+            "1",
+            str(voice),
+        ]
+    )
+    seg = longform.build_segment(
+        visual, voice, tmp_path / "s.mp4", duration=3.0, pause_before=0.3, encoder=X264_FAST
+    )
+    track = tmp_path / "music.mp3"
+    ffmpeg.run(["-f", "lavfi", "-i", "sine=frequency=110:duration=1.5", "-ar", "44100", str(track)])
+    out = longform.finalize_audio(seg, tmp_path / "final.mp4", total=3.0, track=track, volume=0.12)
+    info = probe.validate_video(
+        out, width=1920, height=1080, expected_duration=3.0, tolerance=0.15, need_audio=True
+    )
+    assert (
+        info.sample_rate == 48000
+    )  # музыка зациклена (stream_loop) и смикширована, звук перекодирован
+
+
+def test_music_filter_graph():
+    from techstudio.assemble import music
+
+    assert "sidechaincompress" in music.audio_filter(
+        True, 0.1
+    ) and "loudnorm" in music.audio_filter(True, 0.1)
+    assert "sidechaincompress" not in music.audio_filter(False, 0.1)
+    assert music.music_inputs(None) == []
+
+
+def test_pick_track_only_existing(tmp_path):
+    from techstudio.assemble import music
+
+    (tmp_path / "a.mp3").write_bytes(b"x")
+    pick = music.pick_track(["a.mp3", "missing.mp3"], "v1", lambda t: tmp_path / t)
+    assert pick == tmp_path / "a.mp3"
+    assert music.pick_track(["missing.mp3"], "v1", lambda t: tmp_path / t) is None
+
+
+@needs_ffmpeg
+def test_fade_transition_segment(tmp_path):
+    visual = _color(tmp_path / "v.mp4", 1920, 1080, 2.0)
+    seg = longform.build_segment(
+        visual,
+        None,
+        tmp_path / "s.mp4",
+        duration=2.0,
+        pause_before=0.3,
+        encoder=X264_FAST,
+        fade=True,
+    )
+    probe.validate_video(
+        seg, width=1920, height=1080, expected_duration=2.0, tolerance=0.1, need_audio=True
+    )
+    # первый кадр — затемнён (fade in из чёрного)
+    frame = tmp_path / "f.png"
+    ffmpeg.run(["-i", str(seg), "-frames:v", "1", str(frame)])
+    from PIL import Image
+
+    assert max(Image.open(frame).convert("L").getextrema()) < 60

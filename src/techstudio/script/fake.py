@@ -43,6 +43,8 @@ def fake_script(payload: dict) -> dict:
         }
         if needs_net:
             scene.update(mode="replay", replay_output_key=f"assets/replay/{tid}/cmd{i}")
+        elif m := re.match(r"python3?\s+(\S+\.py)\b", cmd):
+            scene["files"] = {m.group(1): "code"}  # запускаем код из code-сцены
         scenes.append(scene)
     scenes += [
         {

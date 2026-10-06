@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Literal
@@ -116,6 +117,9 @@ class SceneBase(Strict):
     chapter: str | None = None  # заголовок главы YouTube, если сцена начинает главу
 
 
+FILE_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._-]{0,63}")
+
+
 class TerminalScene(SceneBase):
     type: Literal["terminal"] = "terminal"
     mode: Literal["live", "replay"] = "live"
@@ -123,9 +127,16 @@ class TerminalScene(SceneBase):
     replay_output_key: str | None = None
     network: bool = False
     typing_speed: int = Field(45, ge=5, le=300)  # мс на символ
+    # файлы в ~ контейнера до команд: имя файла -> id code-сцены этого сценария (код видит зритель)
+    files: dict[str, str] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _replay_needs_output(self):
+        for name in self.files:
+            if not FILE_NAME.fullmatch(name):
+                raise ValueError(f"имя файла {name!r}: только [A-Za-z0-9._-], без папок")
+        if self.mode == "replay" and self.files:
+            raise ValueError("files только для mode=live: в replay команды не выполняются")
         if self.mode == "replay" and not self.replay_output_key:
             raise ValueError("mode=replay требует replay_output_key (файл с реальным выводом)")
         if self.mode == "replay" and self.network:
@@ -192,7 +203,18 @@ class Script(Strict):
         reserved = {"hook", "outro"} & set(ids)
         if reserved:
             raise ValueError(f"id {sorted(reserved)} зарезервированы")
+        code_ids = {s.id for s in scenes if s.type == "code"}
+        for s in scenes:
+            for name, src in getattr(s, "files", {}).items():
+                if src not in code_ids:
+                    raise ValueError(
+                        f"{s.id}: files.{name} ссылается на {src!r} — нужна code-сцена"
+                    )
         return scenes
+
+    def files_for(self, scene) -> dict[str, str]:
+        """{имя файла: код} для terminal-сцены."""
+        return {name: self.scene(src).code for name, src in getattr(scene, "files", {}).items()}
 
     def scene(self, scene_id: str):
         for s in self.scenes:

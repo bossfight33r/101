@@ -13,9 +13,8 @@ docker pull minlag/mermaid-cli:latest
 ## Piper
 ```bash
 uv pip install --python .venv/bin/python piper-tts
-mkdir -p data/studio/voices && cd data/studio/voices
-curl -LO https://huggingface.co/rhasspy/piper-voices/resolve/main/ru/ru_RU/dmitri/medium/ru_RU-dmitri-medium.onnx
-curl -LO https://huggingface.co/rhasspy/piper-voices/resolve/main/ru/ru_RU/dmitri/medium/ru_RU-dmitri-medium.onnx.json
+.venv/bin/python -m piper.download_voices --download-dir data/studio/voices ru_RU-dmitri-medium ru_RU-irina-medium
+# или вручную: https://huggingface.co/rhasspy/piper-voices/tree/main/ru/ru_RU  (.onnx + .onnx.json рядом)
 ```
 Произношение терминов — `config/studio/voices.yaml` → `pronunciation` (только для TTS).
 

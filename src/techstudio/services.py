@@ -118,7 +118,9 @@ class Services:
             from techstudio.render.diagram import find_runner, make_checker
 
             s = self.settings
-            runner = find_runner(s.mermaid_bin, s.docker_bin, s.mermaid_image)
+            runner = find_runner(
+                s.mermaid_bin, s.docker_bin, s.mermaid_image, s.mermaid_puppeteer_config
+            )
             self.overrides["_mermaid_checker"] = make_checker(runner) if runner else None
         return self.overrides["_mermaid_checker"]
 

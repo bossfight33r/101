@@ -8,6 +8,7 @@ replay — команда набирается, но не выполняется
 from __future__ import annotations
 
 import shutil
+import subprocess
 from pathlib import Path
 
 from techstudio.core import ffmpeg
@@ -74,7 +75,7 @@ def build_tape(
     cfg = TAPE_SETTINGS[aspect]
     tail = max(duration - typing_time(scene), MIN_TAIL)
     lines = [
-        f"Output {output}",
+        f"Output {quote_vhs(output)}",
         'Set Shell "bash"',
         f"Set Width {cfg['width']}",
         f"Set Height {cfg['height']}",
@@ -89,7 +90,8 @@ def build_tape(
     if scene.mode == "replay":
         lines += ['Type "source /out/replay_init.sh"', "Enter"]
     else:
-        lines += ['Type "cd ~ && clear"', "Enter"]
+        setup = "cp -r /out/files/. ~/ && cd ~ && clear" if scene.files else "cd ~ && clear"
+        lines += [f'Type "{setup}"', "Enter"]
     lines += ["Sleep 500ms", "Show", f"Sleep {int(SETUP_SHOW * 1000)}ms"]
     for cmd in scene.commands:
         lines += [
@@ -100,6 +102,16 @@ def build_tape(
         ]
     lines.append(f"Sleep {int(tail * 1000)}ms")
     return "\n".join(lines) + "\n"
+
+
+def validate_tape(tape: Path, vhs_bin: str = "vhs") -> str | None:
+    """`vhs validate` — синтаксис tape без запуска команд. None = ок или vhs не установлен локально."""
+    if shutil.which(vhs_bin) is None:
+        return None
+    proc = subprocess.run(
+        [vhs_bin, "validate", str(tape)], capture_output=True, text=True, timeout=30, check=False
+    )
+    return None if proc.returncode == 0 else (proc.stderr or proc.stdout).strip()[-500:]
 
 
 def stage_replay(env: RenderEnv, scene: TerminalScene, workdir: Path) -> None:
@@ -145,14 +157,22 @@ class TerminalRenderer:
     name = "terminal"
     version = 1
 
-    def __init__(self, env: RenderEnv, sandbox: DockerSandbox):
+    def __init__(self, env: RenderEnv, sandbox: DockerSandbox, vhs_bin: str = "vhs"):
         self.env = env
         self.sandbox = sandbox
+        self.vhs_bin = vhs_bin
 
     def min_duration(self, scene: TerminalScene) -> float:
         return typing_time(scene) + MIN_TAIL
 
-    def render(self, scene: TerminalScene, aspect: Aspect, duration_hint: float) -> SceneRender:
+    def render(
+        self,
+        scene: TerminalScene,
+        aspect: Aspect,
+        duration_hint: float,
+        files: dict[str, str] | None = None,
+    ) -> SceneRender:
+        """files — {имя: код} из code-сцен (Script.files_for), кладутся в ~ контейнера до команд."""
         blocking = policy.errors(policy.check_scene(scene))
         if blocking:
             raise SandboxError("policy: " + "; ".join(str(v) for v in blocking))
@@ -162,10 +182,22 @@ class TerminalRenderer:
         workdir.mkdir(parents=True)
         if scene.mode == "replay":
             stage_replay(self.env, scene, workdir)
-        (workdir / "scene.tape").write_text(
+        if scene.files:
+            missing = set(scene.files) - set(files or {})
+            if missing:
+                raise SandboxError(f"нет содержимого файлов {sorted(missing)}")
+            fdir = workdir / "files"
+            fdir.mkdir()
+            for name in scene.files:
+                (fdir / name).write_text(files[name], encoding="utf-8")
+        tape = workdir / "scene.tape"
+        tape.write_text(
             build_tape(scene, aspect, duration_hint, self.env.style.terminal_theme),
             encoding="utf-8",
         )
+        err = validate_tape(tape, self.vhs_bin)
+        if err:
+            raise TapeError(f"невалидная tape: {err}")
         self.sandbox.run(
             workdir, ["/out/scene.tape"], network=scene.network and scene.mode == "live"
         )

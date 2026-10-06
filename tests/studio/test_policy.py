@@ -131,3 +131,59 @@ def test_check_script_covers_code_secrets():
     )
     v = check_script(sc)
     assert {x.scene_id for x in errors(v)} == {"a", "b"}
+
+
+@pytest.mark.parametrize(
+    "code,rule",
+    [
+        ('import os\nos.system("rm -rf /")', "rm-root"),
+        ('subprocess.run(["rm", "-rf", "/"])', "rm-root"),
+        ('subprocess.run(["sudo", "reboot"])', "sudo"),
+        ('import requests\nrequests.get("https://x")', "needs-network"),
+        ('subprocess.run(["ping", "-c1", host])', "needs-network"),
+    ],
+)
+def test_files_code_checked_by_policy(code, rule):
+    sc = Script(
+        video_id="v",
+        topic_id="t",
+        title="T",
+        hook="h",
+        scenes=[
+            {"type": "code", "id": "c", "narration": "n", "language": "python", "code": code},
+            {
+                "type": "terminal",
+                "id": "t",
+                "narration": "n",
+                "commands": ["python3 s.py"],
+                "files": {"s.py": "c"},
+            },
+        ],
+    )
+    assert rule in {v.rule for v in errors(check_script(sc))}
+
+
+def test_files_safe_code_passes():
+    sc = Script(
+        video_id="v",
+        topic_id="t",
+        title="T",
+        hook="h",
+        scenes=[
+            {
+                "type": "code",
+                "id": "c",
+                "narration": "n",
+                "language": "python",
+                "code": "for h in ['a', 'b']:\n    print(h)\n",
+            },
+            {
+                "type": "terminal",
+                "id": "t",
+                "narration": "n",
+                "commands": ["python3 s.py"],
+                "files": {"s.py": "c"},
+            },
+        ],
+    )
+    assert not errors(check_script(sc))
