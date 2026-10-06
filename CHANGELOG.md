@@ -2,6 +2,11 @@
 
 ## TechStudio
 
+### Фаза 5 — Аналитика и темы
+- `studio track`: published по publishAt, снимки статистики (YouTube Data + опционально Analytics: удержание, средний просмотр, доход).
+- `studio report`: темы, типы сцен (длинные/шортсы), хуки; `--recommendations` — файл для ручного ревью, промпты не меняются.
+- `studio topic suggest|accept`: предложения тем от LLM в файл, в бэклог только после accept.
+
 ### Фаза 4 — Ревью и публикация
 - Бот TechStudio (aiogram, только TS_ADMIN_IDS): гейт 1 (Approve / правка YAML / перегенерация сцены), гейт 2 (превью, шортсы, 3 миниатюры, Approve / Reject / перерендер сцены), команды /studio /topics /new /review /status /retry /publish.
 - Публикация на YouTube: private + publishAt, главы и footer в описании, SRT, миниатюра (экспорт при ошибке), шортсы после длинного с интервалом, идемпотентный повтор.

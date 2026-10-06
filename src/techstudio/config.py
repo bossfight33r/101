@@ -63,6 +63,7 @@ class Settings(BaseSettings):
 
     publisher: Literal["youtube", "fake"] = "youtube"
     collector: Literal["youtube", "fake"] = "youtube"
+    monetized: bool = False  # доход из YouTube Analytics (только монетизированный канал)
     youtube_client_secrets: Path = Path("data/studio/secrets/youtube_client_secret.json")
 
     admin_ids: str = ""

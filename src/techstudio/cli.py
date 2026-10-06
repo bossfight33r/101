@@ -347,3 +347,63 @@ def bot():
         asyncio.run(run_polling(services()))
     except RuntimeError as e:
         fail(str(e))
+
+
+# ---------------- аналитика и темы ----------------
+
+
+@app.command()
+def track():
+    """Отметить вышедшие публикации и снять статистику (снимки append-only)."""
+    from techstudio.track.collector import collect
+
+    n = collect(services())
+    typer.echo(f"снимков статистики: {n}")
+
+
+@app.command()
+def report(
+    as_json: bool = typer.Option(False, "--json"),
+    recommendations: bool = typer.Option(
+        False, "--recommendations", help="Записать файл рекомендаций для ручного ревью."
+    ),
+):
+    """Какие темы, типы сцен и хуки работают лучше."""
+    from datetime import UTC, datetime
+
+    from techstudio.track import report as rep_mod
+
+    svc = services()
+    rep = rep_mod.build_report(svc)
+    typer.echo(
+        json.dumps(rep.as_dict(), ensure_ascii=False, indent=2) if as_json else rep_mod.to_text(rep)
+    )
+    if recommendations:
+        path = svc.storage.write_text(
+            f"reports/recommendations-{datetime.now(UTC):%Y%m%d}.md", rep_mod.recommendations(rep)
+        )
+        typer.echo(f"рекомендации: {path}")
+
+
+@topic_app.command("suggest")
+def topic_suggest():
+    """Предложить новые темы по аналитике → файл для ручного ревью (в бэклог не попадают)."""
+    from techstudio.topics import suggest
+    from techstudio.track import report as rep_mod
+
+    svc = services()
+    path = suggest.suggest(svc, rep_mod.build_report(svc).as_dict())
+    typer.echo(f"предложения: {path}\nпринять: studio topic accept {path} <id> | --all")
+
+
+@topic_app.command("accept")
+def topic_accept(
+    path: Path,
+    topic_ids: list[str] = typer.Argument(None),
+    accept_all: bool = typer.Option(False, "--all"),
+):
+    """Принять предложенные темы в бэклог."""
+    from techstudio.topics import suggest
+
+    added = suggest.accept(services(), path, topic_ids or [], accept_all)
+    typer.echo(f"в бэклог: {', '.join(added) if added else 'ничего'}")

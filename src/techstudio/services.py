@@ -95,6 +95,23 @@ class Services:
         return self.overrides["publisher"]
 
     @property
+    def collector(self):
+        if "collector" not in self.overrides:
+            if self.settings.collector == "fake":
+                from techstudio.track.collector import FakeCollector
+
+                self.overrides["collector"] = FakeCollector()
+            else:
+                from techstudio.publish.youtube import token_path
+                from techstudio.track.collector import YouTubeCollector
+
+                token = token_path(self.storage.path("secrets"), self.channel.account_id)
+                self.overrides["collector"] = YouTubeCollector(
+                    token, monetized=self.settings.monetized
+                )
+        return self.overrides["collector"]
+
+    @property
     def mermaid_checker(self):
         """Проверка синтаксиса mermaid реальным mermaid-cli, если он доступен (кешируется)."""
         if "_mermaid_checker" not in self.overrides:
