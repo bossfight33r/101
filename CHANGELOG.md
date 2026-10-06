@@ -2,6 +2,12 @@
 
 ## TechStudio
 
+### Фаза 4 — Ревью и публикация
+- Бот TechStudio (aiogram, только TS_ADMIN_IDS): гейт 1 (Approve / правка YAML / перегенерация сцены), гейт 2 (превью, шортсы, 3 миниатюры, Approve / Reject / перерендер сцены), команды /studio /topics /new /review /status /retry /publish.
+- Публикация на YouTube: private + publishAt, главы и footer в описании, SRT, миниатюра (экспорт при ошибке), шортсы после длинного с интервалом, идемпотентный повтор.
+- Scheduler: локальное время канала, DST, дневные лимиты.
+- CLI `studio review|publish|auth youtube|bot`.
+
 ### Фаза 3 — Озвучка и сборка
 - Озвучка: словарь произношения только для TTS, Piper/Fake, loudnorm голоса, пословные тайминги через ASR + выравнивание к исходному тексту.
 - Тайминг: max(озвучка + паузы, min_sec, минимум визуала); freeze (tpad) / обрезка хвоста, озвучка не режется.

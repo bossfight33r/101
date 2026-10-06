@@ -104,7 +104,7 @@ def _drop_approval(svc: Services, video_id: str) -> None:
 
 
 def _new_video_id(svc: Services, topic_id: str) -> str:
-    base = f"v{datetime.now(UTC):%Y%m%d}-{topic_id}"[:60]
+    base = f"v{datetime.now(UTC):%Y%m%d}-{topic_id}"[:36]  # callback_data бота ≤ 64 байт
     vid, n = base, 2
     while svc.db.get_video(vid):
         vid, n = f"{base}-{n}", n + 1

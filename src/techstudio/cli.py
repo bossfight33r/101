@@ -265,3 +265,85 @@ def retry_cmd(video_id: str):
         fail(f"retry не удался: {type(e).__name__}: {e}")
     typer.secho("готово → final_review", fg=typer.colors.GREEN)
     _print_summary(summary)
+
+
+# ---------------- review / publish / auth / bot ----------------
+
+
+@app.command("review")
+def review_cmd(
+    video_id: str,
+    action: str = typer.Argument(..., help="approve | reject | thumb"),
+    thumb: str | None = typer.Option(None, "--thumb", help="A/B/C"),
+    reason: str = typer.Option("", "--reason"),
+):
+    """Финальное ревью: выбрать миниатюру, одобрить или отклонить."""
+    from techstudio.pipeline import review
+
+    svc = services()
+    try:
+        if action == "approve":
+            review.approve(svc, video_id, thumb)
+            typer.secho(
+                f"одобрено: {video_id} (миниатюра {svc.db.require_video(video_id).thumbnail_id})",
+                fg=typer.colors.GREEN,
+            )
+        elif action == "reject":
+            review.reject(svc, video_id, reason)
+            typer.echo(f"отклонено: {video_id}")
+        elif action == "thumb" and thumb:
+            review.choose_thumbnail(svc, video_id, thumb)
+            typer.echo(f"миниатюра: {thumb}")
+        else:
+            fail("действие: approve | reject | thumb --thumb X")
+    except review.ReviewError as e:
+        fail(str(e))
+
+
+@app.command("publish")
+def publish_cmd(video_id: str):
+    """Загрузить на YouTube и запланировать (только после финального approve)."""
+    from techstudio.pipeline import publish
+
+    try:
+        pubs = publish.publish_video(services(), video_id)
+    except Exception as e:  # noqa: BLE001
+        fail(f"публикация: {type(e).__name__}: {e}")
+    for p in pubs:
+        typer.echo(
+            f"{p.kind:5} {p.short_id or '':16} {p.scheduled_at:%Y-%m-%d %H:%M} UTC  {p.status}  {p.url or ''}"
+        )
+        for n in p.notes:
+            typer.secho(f"  ⚠ {n}", fg=typer.colors.YELLOW)
+
+
+auth_app = typer.Typer(help="OAuth.", no_args_is_help=True)
+app.add_typer(auth_app, name="auth")
+
+
+@auth_app.command("youtube")
+def auth_youtube(account: str | None = typer.Option(None, "--account")):
+    """Авторизация YouTube в браузере, токен → data/studio/secrets/<account>.json."""
+    from techstudio.publish.youtube import authorize, token_path
+
+    svc = services()
+    secrets = svc.settings.resolve(svc.settings.youtube_client_secrets)
+    if not secrets.exists():
+        fail(f"нет {secrets} — см. docs/studio/runbook.md#youtube")
+    token = authorize(
+        secrets, token_path(svc.storage.path("secrets"), account or svc.channel.account_id)
+    )
+    typer.echo(f"токен сохранён: {token}")
+
+
+@app.command()
+def bot():
+    """Запустить Telegram-бота (раздел TechStudio, только TS_ADMIN_IDS)."""
+    import asyncio
+
+    from techstudio.bot.handlers import run_polling
+
+    try:
+        asyncio.run(run_polling(services()))
+    except RuntimeError as e:
+        fail(str(e))

@@ -81,6 +81,20 @@ class Services:
         return self._transcriber
 
     @property
+    def publisher(self):
+        if "publisher" not in self.overrides:
+            if self.settings.publisher == "fake":
+                from techstudio.publish.fake import FakePublisher
+
+                self.overrides["publisher"] = FakePublisher()
+            else:
+                from techstudio.publish.youtube import YouTubePublisher, token_path
+
+                token = token_path(self.storage.path("secrets"), self.channel.account_id)
+                self.overrides["publisher"] = YouTubePublisher(token)
+        return self.overrides["publisher"]
+
+    @property
     def mermaid_checker(self):
         """Проверка синтаксиса mermaid реальным mermaid-cli, если он доступен (кешируется)."""
         if "_mermaid_checker" not in self.overrides:
