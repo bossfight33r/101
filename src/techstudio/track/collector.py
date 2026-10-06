@@ -137,7 +137,8 @@ def collect(svc, now: datetime | None = None) -> int:
     pubs = [p for p in svc.db.list_publications() if p.status == "published" and p.remote_id]
     if not pubs:
         return 0
+    taken = now or datetime.now(UTC)
     snaps = svc.collector.fetch(pubs)
     for s in snaps:
-        svc.db.add_snapshot(s)
+        svc.db.add_snapshot(s.model_copy(update={"taken_at": taken}))
     return len(snaps)

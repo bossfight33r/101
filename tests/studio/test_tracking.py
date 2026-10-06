@@ -1,9 +1,11 @@
 import hashlib
 from datetime import timedelta
 
+import pytest
+
 from techstudio.pipeline import publish, review
 from techstudio.prompts import load as load_prompt
-from techstudio.schemas import TopicStatus
+from techstudio.schemas import TopicStatus, VideoStatus
 from techstudio.topics import suggest
 from techstudio.track import report as rep_mod
 from techstudio.track.collector import FakeCollector, collect
@@ -74,3 +76,26 @@ def test_topic_suggestions_need_manual_accept(svc, topic):
     assert suggest.accept(svc, path, ["wireguard-openwrt"]) == ["wireguard-openwrt"]
     assert svc.db.get_topic("wireguard-openwrt").status == TopicStatus.backlog
     assert suggest.accept(svc, path, [], accept_all=True) == []  # повтор не дублирует
+
+
+def test_report_uses_published_version_and_views_per_day(svc, ready):  # noqa: F811
+    import yaml
+
+    from techstudio.pipeline import scripts
+
+    pubs = _published(svc, ready)
+    # после публикации Босс правит сценарий — отчёт должен смотреть на опубликованную версию
+    data = yaml.safe_load(scripts.export_script(svc, ready).read_text())
+    data["hook"] = "Новый хук после публикации."
+    svc.db.update_video(ready, status=VideoStatus.final_review)
+    rec = svc.db.require_video(ready)
+    svc.db.update_video(ready, approved_version=rec.script_version)
+    published_hook = scripts.load_script(svc, ready).hook
+    scripts.import_script(svc, ready, yaml.dump(data, allow_unicode=True))
+    svc.db.update_video(ready, approved_version=1)
+    collect(svc, max(p.scheduled_at for p in pubs) + timedelta(days=10))
+    rep = rep_mod.build_report(svc)
+    assert rep.hooks_long[0]["hook"] == published_hook
+    assert rep.topics[0]["views_per_day"] == pytest.approx(
+        100.0, rel=0.15
+    )  # 1000 просмотров / ~10 дней
