@@ -21,6 +21,7 @@ EDITABLE = {
     VideoStatus.approved,
     VideoStatus.failed,
     VideoStatus.final_review,
+    VideoStatus.rejected,  # после Reject можно прислать правку сценария
 }
 
 

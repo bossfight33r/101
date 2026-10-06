@@ -190,3 +190,13 @@ def test_cli_script_flow(svc, topic, monkeypatch, tmp_path):
     assert r.exit_code == 0 and "v2" in r.output
     r = CliRunner().invoke(cli.app, ["script", "approve", vid])
     assert r.exit_code == 0 and "одобрено" in r.output
+
+
+def test_concurrent_render_blocked(svc, topic):
+    script, _ = scripts.new_script(svc, topic.id)
+    scripts.approve(svc, script.video_id)
+    with orchestrator.video_lock(svc, script.video_id):
+        with pytest.raises(orchestrator.BusyError):
+            orchestrator.render_video(svc, script.video_id)
+    # статус не испорчен попыткой
+    assert svc.db.require_video(script.video_id).status == VideoStatus.approved

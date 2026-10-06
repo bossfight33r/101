@@ -123,7 +123,9 @@ def _print_report(report) -> None:
 
 
 @script_app.command("new")
-def script_new(topic_id: str):
+def script_new(
+    topic_id: str, notify: bool = typer.Option(False, "--notify", help="Гейт 1 — в бот.")
+):
     """Сгенерировать сценарий по теме → статус script_review."""
     from techstudio.pipeline import scripts
 
@@ -134,6 +136,8 @@ def script_new(topic_id: str):
     typer.echo(f"видео: {script.video_id}  v{script.version}  сцен: {len(script.scenes)}")
     _print_report(report)
     typer.echo(f"сценарий: {scripts.script_path(services(), script.video_id)}")
+    if notify:
+        _notify(script.video_id)
 
 
 @script_app.command("export")
@@ -205,7 +209,9 @@ def _print_summary(summary: dict) -> None:
 
 @app.command()
 def render(
-    video_id: str, scene: str | None = typer.Option(None, "--scene", help="Перерендер одной сцены.")
+    video_id: str,
+    scene: str | None = typer.Option(None, "--scene", help="Перерендер одной сцены."),
+    notify: bool = typer.Option(False, "--notify", help="Гейт 2 (или ошибку) — в бот."),
 ):
     """Озвучка → визуалы → сборка (только после approve сценария)."""
     from techstudio.pipeline import orchestrator
@@ -219,9 +225,13 @@ def render(
     except orchestrator.NotApprovedError as e:
         fail(f"рендер запрещён: {e}")
     except Exception as e:  # noqa: BLE001
+        if notify:
+            _notify(video_id)
         fail(f"рендер упал: {type(e).__name__}: {e}\nпосле исправления: studio retry {video_id}")
     typer.secho("готово → final_review", fg=typer.colors.GREEN)
     _print_summary(summary)
+    if notify:
+        _notify(video_id)
 
 
 @app.command()
@@ -334,6 +344,24 @@ def auth_youtube(account: str | None = typer.Option(None, "--account")):
         secrets, token_path(svc.storage.path("secrets"), account or svc.channel.account_id)
     )
     typer.echo(f"токен сохранён: {token}")
+
+
+def _notify(video_id: str) -> None:
+    import asyncio
+
+    from techstudio.bot.handlers import notify
+
+    try:
+        n = asyncio.run(notify(services(), video_id))
+        typer.echo(f"отправлено в бот: {n} админ(ам)")
+    except Exception as e:  # noqa: BLE001 — уведомление не должно ронять команду
+        typer.secho(f"уведомление не отправлено: {e}", fg=typer.colors.YELLOW)
+
+
+@app.command("notify")
+def notify_cmd(video_id: str):
+    """Прислать админам в Telegram гейт текущего статуса видео."""
+    _notify(video_id)
 
 
 @app.command()

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import fcntl
 import json
+from contextlib import contextmanager
 
 from techstudio.core import log
 from techstudio.pipeline import scripts, stages
@@ -63,8 +65,32 @@ def _fail(svc: Services, video_id: str, stage: str, e: Exception) -> None:
     _log.error("render.failed", video_id=video_id, stage=stage, error=info.error_type)
 
 
+class BusyError(RuntimeError):
+    retryable = True
+
+
+@contextmanager
+def video_lock(svc: Services, video_id: str):
+    """Один рендер на видео (двойной клик в боте, CLI параллельно с ботом)."""
+    path = svc.video_dir(video_id) / ".render.lock"
+    with path.open("w") as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as e:
+            raise BusyError(f"{video_id} уже рендерится") from e
+        try:
+            yield
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
 def render_video(svc: Services, video_id: str) -> dict:
     """approved → voicing → rendering → assembling → final_review. Повтор = resume по манифестам."""
+    with video_lock(svc, video_id):
+        return _render_video(svc, video_id)
+
+
+def _render_video(svc: Services, video_id: str) -> dict:
     script = ensure_renderable(svc, video_id)
     ctx = stages.make_ctx(svc, script)
     stage = "voicing"

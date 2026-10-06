@@ -2,6 +2,15 @@
 
 ## TechStudio
 
+### Доводка после фазы 5
+- `files` в live-сценах: код из code-сцены кладётся в `~` песочницы; код проходит policy (shell-денилист, сеть).
+- Tape проверяется реальным `vhs validate`; исправлен `Output` без кавычек (VHS его не парсил).
+- mermaid-cli 12: убраны `-w/-H`, scale; 9:16 разворачивает LR→TD; короткие ошибки на ревью; `TS_MERMAID_PUPPETEER_CONFIG`.
+- Субтитры шортсов: плашка (BorderStyle 3), `\pos` без коллизий на стыках, без дубля на карточке хука.
+- Блокировка рендера/публикации на видео; `studio notify` и `--notify`; правка после Reject.
+- Контрактные тесты реальных SDK без сети: YouTube (статическая discovery + HttpMock), Analytics, подпись Anthropic `stream`, отправка в бот.
+- `piper` находится в venv без activate; runbook: `python -m piper.download_voices`.
+
 ### Фаза 5 — Аналитика и темы
 - `studio track`: published по publishAt, снимки статистики (YouTube Data + опционально Analytics: удержание, средний просмотр, доход).
 - `studio report`: темы, типы сцен (длинные/шортсы), хуки; `--recommendations` — файл для ручного ревью, промпты не меняются.

@@ -56,6 +56,11 @@ def export_thumbnail(svc: Services, video_id: str, image, reason: str):
 
 
 def publish_video(svc: Services, video_id: str, now: datetime | None = None) -> list[Publication]:
+    with orchestrator.video_lock(svc, video_id):  # двойной клик в боте не загрузит дважды
+        return _publish_video(svc, video_id, now)
+
+
+def _publish_video(svc: Services, video_id: str, now: datetime | None = None) -> list[Publication]:
     now = now or datetime.now(UTC)
     rec = svc.db.require_video(video_id)
     if rec.status not in (VideoStatus.final_review, VideoStatus.scheduled):

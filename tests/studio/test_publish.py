@@ -249,3 +249,13 @@ def test_mark_published(svc, ready):
     pubs = publish.publish_video(svc, ready, NOW)
     assert publish.mark_published(svc, pubs[0].scheduled_at + timedelta(minutes=1)) == 1
     assert svc.db.require_video(ready).status == VideoStatus.published
+
+
+def test_concurrent_publish_blocked(svc, ready):
+    from techstudio.pipeline import orchestrator
+
+    review.approve(svc, ready, "A")
+    with orchestrator.video_lock(svc, ready):
+        with pytest.raises(orchestrator.BusyError):
+            publish.publish_video(svc, ready, NOW)
+    assert svc.publisher.uploads == []

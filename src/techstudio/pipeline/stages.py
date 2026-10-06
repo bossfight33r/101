@@ -38,7 +38,7 @@ VOICE_V = 1
 VISUAL_V = 2
 SEGMENT_V = 2
 LONG_V = 1
-SHORT_V = 3
+SHORT_V = 4
 META_V = 1
 THUMBS_V = 2
 PREVIEW_V = 1
@@ -433,7 +433,7 @@ def run_shorts(ctx: VideoCtx) -> list[ShortSpec]:
                     stem="short_hook_9x16",
                 )
             )
-            words += captions.shift(hook_na.words, pause)
+            # субтитров на карточке хука нет: её текст и так крупно на экране
             t += hook_dur
         parts.append(_segment(ctx, scene.id, "9x16"))
         words += captions.shift(ctx.narration[scene.id].words, t + pause)

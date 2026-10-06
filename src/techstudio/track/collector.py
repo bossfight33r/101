@@ -55,18 +55,26 @@ class YouTubeCollector:
 
     name = "youtube"
 
-    def __init__(self, token: Path, with_analytics: bool = True, monetized: bool = False):
-        from googleapiclient.discovery import build
+    def __init__(
+        self,
+        token: Path | None = None,
+        with_analytics: bool = True,
+        monetized: bool = False,
+        yt=None,
+        ya=None,
+    ):
+        """yt/ya — готовые клиенты (тесты). Иначе строим со статической discovery (без сети)."""
+        if yt is None:
+            from googleapiclient.discovery import build
 
-        from techstudio.publish.youtube import load_credentials
+            from techstudio.publish.youtube import load_credentials
 
-        creds = load_credentials(token)
-        self.yt = build("youtube", "v3", credentials=creds, cache_discovery=False)
-        self.ya = (
-            build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
-            if with_analytics
-            else None
-        )
+            creds = load_credentials(token)
+            yt = build("youtube", "v3", credentials=creds, static_discovery=True)
+            if with_analytics:
+                ya = build("youtubeAnalytics", "v2", credentials=creds, static_discovery=True)
+        self.yt = yt
+        self.ya = ya if with_analytics else None
         self.monetized = monetized
 
     def _analytics(self, video_id: str, start: date) -> dict:

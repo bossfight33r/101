@@ -61,10 +61,15 @@ def _http_error(e) -> PublishError:
 class YouTubePublisher:
     name = "youtube"
 
-    def __init__(self, token: Path):
-        from googleapiclient.discovery import build
+    def __init__(self, token: Path | None = None, client=None):
+        """client — готовый googleapiclient (тесты: http=HttpMock). Discovery — статическая, без сети."""
+        if client is None:
+            from googleapiclient.discovery import build
 
-        self.yt = build("youtube", "v3", credentials=load_credentials(token), cache_discovery=False)
+            client = build(
+                "youtube", "v3", credentials=load_credentials(token), static_discovery=True
+            )
+        self.yt = client
 
     def upload(
         self, file: Path, *, title, description, tags, language, publish_at: datetime

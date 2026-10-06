@@ -107,3 +107,35 @@ async def run_polling(svc: Services) -> None:
     dp.include_router(build_router(svc))
     _log.info("bot.start", admins=len(svc.settings.admin_id_set))
     await dp.start_polling(bot)
+
+
+def gate_for(svc: Services, video_id: str) -> list[logic.Reply]:
+    from techstudio.schemas import VideoStatus
+
+    rec = svc.db.require_video(video_id)
+    if rec.status == VideoStatus.final_review:
+        return logic.final_gate(svc, video_id)
+    if rec.status == VideoStatus.script_review:
+        return logic.script_gate(svc, video_id)
+    text = f"{video_id}: {rec.status.value}"
+    if rec.failure:
+        text += f"\n❌ {rec.failure.stage}: {rec.failure.message[:300]}\n/retry {video_id}"
+    return [logic.Reply(text=text)]
+
+
+async def notify(svc: Services, video_id: str, bot: Bot | None = None) -> int:
+    """Отправить админам гейт текущего статуса видео (после CLI-команды). Возвращает число получателей."""
+    token = svc.settings.telegram_bot_token
+    own = bot is None
+    if own:
+        if token is None:
+            raise RuntimeError("нет TELEGRAM_BOT_TOKEN в .env")
+        bot = Bot(token.get_secret_value())
+    replies = gate_for(svc, video_id)
+    try:
+        for admin in sorted(svc.settings.admin_id_set):
+            await send_replies(bot, admin, replies)
+    finally:
+        if own:
+            await bot.session.close()
+    return len(svc.settings.admin_id_set)

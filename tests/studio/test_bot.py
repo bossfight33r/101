@@ -114,3 +114,12 @@ def test_commands(svc, topic):
     assert "Сценарий" in gate[0].text
     replies, _ = logic.handle_command(svc, "studio", [])
     assert "script_review" in replies[0].text
+
+
+def test_edit_after_reject(svc, ready):  # noqa: F811
+    logic.handle_callback(svc, logic.cb("fr", ready))
+    data = yaml.safe_load(scripts.export_script(svc, ready).read_text())
+    data["title"] = "Исправлено после reject"
+    replies = logic.handle_document(svc, "script.yaml", yaml.dump(data, allow_unicode=True))
+    assert "Правка принята" in replies[0].text
+    assert svc.db.require_video(ready).status == VideoStatus.script_review

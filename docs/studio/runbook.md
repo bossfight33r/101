@@ -25,6 +25,14 @@ uv pip install --python .venv/bin/python piper-tts
 4. `.venv/bin/studio auth youtube --account yt_main` (браузер) → `data/studio/secrets/yt_main.json`.
 Миниатюры через API требуют подтверждённого канала; иначе файл в `data/studio/exports/{id}/`.
 
+## Проверки без Docker
+- `brew install vhs` → `TS_VHS_BIN=vhs`: каждая tape проходит `vhs validate` до запуска песочницы.
+- mermaid-cli локально: `npm i -g @mermaid-js/mermaid-cli` → `TS_MERMAID_BIN=mmdc`. Под root (Linux-сервер)
+  нужен `TS_MERMAID_PUPPETEER_CONFIG=puppeteer.json` с `{"executablePath": "…/chrome", "args": ["--no-sandbox"]}`.
+
+## Уведомления
+`studio script new <topic> --notify`, `studio render <id> --notify`, `studio notify <id>` — гейт в Telegram всем `TS_ADMIN_IDS`.
+
 ## Replay-вывод с устройств
 Для `mode: replay` положи реальный вывод команды с роутера:
 `data/studio/assets/replay/<topic>/<scene>/0.txt` (1.txt … для следующих команд сцены) или один файл `<key>.txt`.
