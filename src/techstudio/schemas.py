@@ -73,6 +73,10 @@ class Channel(Strict):
     music_volume: float = Field(0.12, ge=0, le=1)
     transition: Literal["cut", "fade"] = "cut"
     shorts_voice_hook: bool = True
+    outro_min_sec: float = Field(10.0, ge=0, le=20)  # конечная заставка YouTube: 5–20 с
+    hashtags: list[str] = Field(
+        default_factory=list, max_length=15
+    )  # в конец описания; первые 3 — над названием
     short_candidates_min: int = 3
     short_candidates_max: int = 5
 

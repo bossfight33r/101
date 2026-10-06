@@ -29,12 +29,25 @@ class PublishStateError(RuntimeError):
     pass
 
 
-def long_description(meta: VideoMeta, asm: VideoAssembly, footer: str) -> str:
+def hashtags_line(tags: list[str]) -> str:
+    out = []
+    for t in tags:
+        t = "#" + "".join(ch for ch in t.lstrip("#") if ch.isalnum() or ch == "_")
+        if len(t) > 1 and t not in out:
+            out.append(t)
+    return " ".join(out)
+
+
+def long_description(
+    meta: VideoMeta, asm: VideoAssembly, footer: str, hashtags: list[str] | None = None
+) -> str:
     parts = [meta.description.strip()]
     if asm.chapters_valid:
         parts.append(chap.to_text(asm.chapters, asm.duration).strip())
     if footer.strip():
         parts.append(footer.strip())
+    if hashtags:
+        parts.append(hashtags_line(hashtags))
     return "\n\n".join(p for p in parts if p)
 
 
@@ -161,7 +174,7 @@ def _publish_video(svc: Services, video_id: str, now: datetime | None = None) ->
             remote = publisher.upload(
                 svc.storage.path(asm.long_key),
                 title=meta.title,
-                description=long_description(meta, asm, ch.description_footer),
+                description=long_description(meta, asm, ch.description_footer, ch.hashtags),
                 tags=meta.tags,
                 language=ch.language,
                 publish_at=long_pub.scheduled_at,

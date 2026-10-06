@@ -24,6 +24,8 @@ music_tracks: []               # только свои треки: data/studio/m
 music_volume: 0.12
 transition: cut                # cut | fade
 shorts_voice_hook: true
+outro_min_sec: 10              # аутро не короче — под конечную заставку YouTube (5–20 с)
+hashtags: [linux, openwrt, сети]   # в конец описания; первые три YouTube показывает над названием
 short_candidates_min: 3
 short_candidates_max: 5
 style:

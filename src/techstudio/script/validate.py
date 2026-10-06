@@ -109,7 +109,7 @@ def estimate_total_sec(script: Script, channel: Channel) -> float:
     wpm = channel.words_per_minute
     total = estimate_speech(script.hook, wpm) + 0.8
     if script.outro:
-        total += estimate_speech(script.outro, wpm) + 0.8
+        total += max(estimate_speech(script.outro, wpm) + 0.8, channel.outro_min_sec)
     return total + sum(estimate_scene_sec(s, channel) for s in script.scenes)
 
 
@@ -149,6 +149,9 @@ def validate_script(
         rep.add(
             "error", "-", f"оценка длительности {rep.estimated_sec:.0f} с > {hi} с: много текста"
         )
+
+    if not script.outro.strip():
+        rep.add("warning", "outro", "нет аутро — некуда поставить конечную заставку YouTube")
 
     # шортсы
     shorts = [s for s in script.scenes if s.short_candidate]

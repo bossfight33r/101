@@ -83,13 +83,20 @@ class VideoCtx:
         return Manifest.load(path), path
 
 
-def service_scenes(script: Script, channel_name: str) -> list:
-    """Служебные сцены хука и аутро (ADR 0002) + сцены сценария."""
+def service_scenes(script: Script, channel_name: str, outro_min_sec: float = 0.0) -> list:
+    """Служебные сцены хука и аутро (ADR 0002) + сцены сценария.
+    Аутро не короче outro_min_sec — место под конечную заставку YouTube (5–20 с)."""
     scenes = [SlideScene(id="hook", narration=script.hook, title=script.title)]
     scenes += list(script.scenes)
     if script.outro.strip():
         scenes.append(
-            SlideScene(id="outro", narration=script.outro, title="Что дальше", bullets=[])
+            SlideScene(
+                id="outro",
+                narration=script.outro,
+                title="Что дальше",
+                bullets=[],
+                min_sec=outro_min_sec,
+            )
         )
     return scenes
 
@@ -106,7 +113,7 @@ def make_ctx(svc: Services, script: Script) -> VideoCtx:
         encoder=encoder,
         renderers=build_renderers(svc, env),
     )
-    ctx.long_scenes = service_scenes(script, svc.channel.name)
+    ctx.long_scenes = service_scenes(script, svc.channel.name, svc.channel.outro_min_sec)
     return ctx
 
 
@@ -219,8 +226,14 @@ def _render_one(ctx: VideoCtx, scene, aspect: str) -> SceneRender:
     sdir = ctx.scene_dir(scene.id)
     m, mpath = ctx.scene_manifest(scene.id)
     stage = f"visual:{aspect}"
+    service_slide = scene.id in ("hook", "outro") and isinstance(r, SlideRenderer)
+    # хук: обещание видео текстом на экране; аутро: имя канала
+    subtitle = (
+        (ctx.svc.channel.name if scene.id == "outro" else ctx.script.hook) if service_slide else ""
+    )
     ihash = inputs_hash(
         scene,
+        subtitle,
         aspect,
         round(target, 2),
         r.name,
@@ -232,10 +245,8 @@ def _render_one(ctx: VideoCtx, scene, aspect: str) -> SceneRender:
     if m.is_fresh(stage, VISUAL_V, ihash, sdir):
         _hit(ctx, f"{scene.id}/{stage}")
         return SceneRender.model_validate(m.stages[stage].extra["render"])
-    if scene.id in ("hook", "outro") and isinstance(r, SlideRenderer):
-        rendered = r.render(
-            scene, aspect, target, subtitle=ctx.svc.channel.name if scene.id == "outro" else ""
-        )
+    if service_slide:
+        rendered = r.render(scene, aspect, target, subtitle=subtitle)
     elif scene.type == "terminal" and scene.files:
         rendered = r.render(scene, aspect, target, files=ctx.script.files_for(scene))
     else:

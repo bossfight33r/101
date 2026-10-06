@@ -341,3 +341,22 @@ def test_fake_visuals_block_final_approve(svc, ready):
     svc.settings.allow_fake_publish = True  # явный отладочный флаг
     review.approve(svc, ready, "A")
     assert svc.db.require_video(ready).final_approved
+
+
+def test_hashtags_in_long_description(svc, ready):
+    svc.settings.__dict__["channel"] = svc.channel.model_copy(
+        update={"hashtags": ["linux", "#OpenWrt", "сети", "linux", "a b"]}
+    )
+    review.approve(svc, ready, "A")
+    publish.publish_video(svc, ready, NOW)
+    desc = svc.publisher.uploads[0]["description"]
+    assert desc.rstrip().endswith("#linux #OpenWrt #сети #ab")
+
+
+def test_outro_has_end_screen_room(svc, topic):
+    from techstudio.pipeline import stages
+
+    script, _ = scripts.new_script(svc, topic.id)
+    scenes = stages.service_scenes(script, "x", 10.0)
+    assert scenes[-1].id == "outro" and scenes[-1].min_sec == 10.0
+    assert scenes[0].id == "hook"
