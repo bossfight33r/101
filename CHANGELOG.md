@@ -2,6 +2,12 @@
 
 ## TechStudio
 
+### Фаза 2 — Визуалы
+- Рендереры terminal (VHS tape → Docker-песочница → нормализация), code (Pygments + Pillow, by_line, подсветка строк, перенос в 9:16), diagram (mermaid-cli локально/в Docker, fallback-слайд), slide (буллеты по одному), image (Ken Burns, fallback при отсутствии ассета). Обе ориентации нативно.
+- `sandbox/docker.py`: non-root, без сети, read-only, cap-drop, лимиты и таймаут.
+- replay: вывод из файла реального вывода через bash DEBUG trap (ADR 0004).
+- Проверка mermaid реальным mermaid-cli при валидации, если доступен.
+
 ### Фаза 1 — Сценарий
 - Генерация сценария через LLM (промпт `prompts/script.md` + `script-format.md`), одна попытка самоисправления.
 - Валидация: хук ≤ 10 с, длительность против окна канала, запрещённые фразы, шортсы ≤ 58 с, mermaid, ассеты, policy.

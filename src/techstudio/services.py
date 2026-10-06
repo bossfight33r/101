@@ -81,6 +81,17 @@ class Services:
         return self._transcriber
 
     @property
+    def mermaid_checker(self):
+        """Проверка синтаксиса mermaid реальным mermaid-cli, если он доступен (кешируется)."""
+        if "_mermaid_checker" not in self.overrides:
+            from techstudio.render.diagram import find_runner, make_checker
+
+            s = self.settings
+            runner = find_runner(s.mermaid_bin, s.docker_bin, s.mermaid_image)
+            self.overrides["_mermaid_checker"] = make_checker(runner) if runner else None
+        return self.overrides["_mermaid_checker"]
+
+    @property
     def channel(self):
         return self.settings.channel
 

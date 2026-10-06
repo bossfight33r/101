@@ -57,7 +57,11 @@ def _asset_exists(svc: Services):
 
 
 def validate(svc: Services, script: Script) -> ValidationReport:
-    checker = svc.overrides.get("mermaid_checker")
+    checker = (
+        svc.overrides["mermaid_checker"]
+        if "mermaid_checker" in svc.overrides
+        else svc.mermaid_checker
+    )
     return validate_script(
         script, svc.channel, mermaid_checker=checker, asset_exists=_asset_exists(svc)
     )

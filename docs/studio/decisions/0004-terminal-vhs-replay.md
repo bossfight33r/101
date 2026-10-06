@@ -1,0 +1,17 @@
+# ADR 0004 — Терминальные сцены: VHS в песочнице, replay через DEBUG trap
+
+**Решение.**
+- Tape генерируется из сцены под ориентацию (`Set Width/Height/FontSize`, Theme из стиля канала,
+  `Type`/`Enter`/`Sleep`). Длительность: набор (символы × typing_speed) + 0.3 с до Enter + 2 с на вывод
+  + хвостовой `Sleep` до `duration_hint` (минимум 1 с). Выход VHS нормализуется ffmpeg в точный размер и 30 fps.
+- VHS запускается внутри образа `docker/studio/Dockerfile`: `--network none` (bridge только при `network: true`
+  в live), `--user 1000:1000`, `--read-only` + tmpfs `/tmp` и `/home/studio`, `--cap-drop ALL`,
+  `no-new-privileges`, лимиты CPU/RAM/PID, таймаут с `docker kill`. С хоста монтируется только
+  `scenes/{id}/vhs_{aspect}/` (tape, replay-файлы, выход), не вся папка видео.
+- Live-команды выполняются в пустом `~` контейнера. Нужны файлы — показывай их создание в сцене или используй replay.
+- **replay**: невидимо выполняется `source /out/replay_init.sh` — `shopt -s extdebug` + `trap … DEBUG`,
+  функция-ловушка возвращает 1 (команда **не выполняется**) и один раз на строку истории (`$HISTCMD`)
+  печатает `replay/N.txt` — реальный вывод Босса. Проверено в интерактивном bash: пайпы и `&&` печатают
+  вывод один раз, `touch` не создаёт файл.
+- Policy проверяется ещё раз в рендерере, до запуска Docker.
+- `TS_RENDERERS=auto`: нет Docker/образа — терминал рендерится фейком с предупреждением (видно на ревью).
