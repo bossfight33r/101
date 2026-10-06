@@ -234,3 +234,14 @@ def test_quality_warnings():
     w = orchestrator.quality_warnings(svc, ctx, asm, meta)
     assert any("вне окна" in x for x in w) and any(x.startswith("a:") for x in w)
     assert not any(x.startswith("hook:") for x in w) and any("заголовок" in x for x in w)
+
+
+def test_missing_must_show_command_warned(svc, topic):
+    script, report = scripts.new_script(svc, topic.id)
+    assert not any("обязательная команда" in i.message for i in report.issues)
+    data = yaml.safe_load(scripts.export_script(svc, script.video_id).read_text())
+    for s in data["scenes"]:
+        if s["type"] == "terminal" and s["commands"] == ["ss -tuln"]:
+            s["commands"] = ["ip addr"]
+    _, rep = scripts.import_script(svc, script.video_id, yaml.dump(data, allow_unicode=True))
+    assert any("`ss -tuln`" in i.message for i in rep.warnings)

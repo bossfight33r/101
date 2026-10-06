@@ -64,7 +64,11 @@ def validate(svc: Services, script: Script) -> ValidationReport:
         else svc.mermaid_checker
     )
     return validate_script(
-        script, svc.channel, mermaid_checker=checker, asset_exists=_asset_exists(svc)
+        script,
+        svc.channel,
+        mermaid_checker=checker,
+        asset_exists=_asset_exists(svc),
+        topic=svc.db.get_topic(script.topic_id),
     )
 
 

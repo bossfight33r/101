@@ -119,9 +119,20 @@ def validate_script(
     *,
     mermaid_checker: MermaidChecker | None = None,
     asset_exists: Callable[[str], bool] | None = None,
+    topic=None,
 ) -> ValidationReport:
     rep = ValidationReport()
     wpm = channel.words_per_minute
+
+    # тема: все обязательные команды показаны (нормализуем пробелы)
+    if topic is not None:
+        shown = {
+            " ".join(c.split()) for s in script.scenes if s.type == "terminal" for c in s.commands
+        }
+        for cmd in topic.must_show_commands:
+            norm = " ".join(cmd.split())
+            if not any(norm == c or c.startswith(norm + " ") or norm in c for c in shown):
+                rep.add("warning", "-", f"не показана обязательная команда темы: `{cmd}`")
 
     # хук
     hook_sec = estimate_speech(script.hook, wpm)
