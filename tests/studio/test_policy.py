@@ -44,6 +44,11 @@ DANGEROUS = [
     "eval $(cat cmd.txt)",
     'ls; eval "$X"',
     "xxd -r -p payload.hex | bash",
+    "python3 -c \"import os; os.system('rm -rf /')\"",
+    "X=rm; $X -rf /",
+    "printf 'cm0gLXJmIC8=' | sh",
+    "sh -c 'reboot'",
+    "find / -name x -exec sh -c 'mkfs.ext4 /dev/sda1' \\;",
 ]
 
 SECRETS = [
@@ -80,6 +85,10 @@ SAFE = [
     "echo aGVsbG8= | base64 -d",
     "base64 -d key.b64 > key.bin",
     "grep -r evaluate src/",
+    "python3 -c \"print('hello')\"",
+    "echo $HOME",
+    "export PATH=$PATH:~/bin",
+    "for h in a b; do ping -c1 $h; done",
 ]
 
 

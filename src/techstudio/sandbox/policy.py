@@ -92,6 +92,16 @@ RULES: tuple[Rule, ...] = (
     _r("crypto-miner", r"\b(?:xmrig|minerd|cpuminer)\b", "майнер"),
     _r("reverse-shell", r"/dev/tcp/|\bnc\b[^\n]*\s-e\s|\bncat\b[^\n]*--exec", "reverse shell"),
     # обфускация: то, что policy не может прочитать, не выполняем и не показываем
+    _r(
+        "pipe-into-shell",
+        r"\|\s*(?:sudo\s+)?(?:ba|z|da|k)?sh\b",
+        "pipe в shell — выполняется то, чего нет на экране",
+    ),
+    _r(
+        "command-from-var",
+        _SEP + r"\$\{?\w+\}?(?:\s|$)",
+        "команда из переменной — policy не может её прочитать",
+    ),
     _r("eval", _SEP + r"eval\b", "eval — команда не читается policy"),
     _r(
         "decode-to-shell",
@@ -170,12 +180,20 @@ class Violation:
         return f"[{self.severity}] {self.scene_id}: {self.message}: `{self.command}`"
 
 
+def unwrap_quotes(text: str) -> str:
+    """os.system("rm -rf /") / run(["rm", "-rf", "/"]) / -c 'reboot' → ;rm -rf /; — для денилиста."""
+    text = re.sub(r"[\"']\s*,\s*[\"']", " ", text)
+    return re.sub(r"[\"'\[\]`]", ";", text)
+
+
 def check_command(
     command: str, *, scene_id: str = "-", network: bool = False, mode: str = "live"
 ) -> list[Violation]:
     out: list[Violation] = []
+    # вторая форма: строки внутри кавычек как отдельные команды — ловит python3 -c "os.system('rm -rf /')"
+    unwrapped = unwrap_quotes(command)
     for rule in (*RULES, *SECRET_RULES):
-        if rule.pattern.search(command):
+        if rule.pattern.search(command) or (rule in RULES and rule.pattern.search(unwrapped)):
             out.append(Violation(scene_id, command, rule.id, rule.message, rule.severity))
     if mode == "live" and not network and NETWORK_TOOLS.search(command):
         out.append(
@@ -212,9 +230,7 @@ def check_script(script) -> list[Violation]:
         for name, src in getattr(scene, "files", {}).items():
             code = script.scene(src).code
             for line in code.splitlines():
-                # os.system("rm -rf /") / run(["rm", "-rf", "/"]) → ;rm -rf /;
-                as_cmd = re.sub(r"[\"']\s*,\s*[\"']", " ", line)
-                as_cmd = re.sub(r"[\"'\[\]]", ";", as_cmd)
+                as_cmd = unwrap_quotes(line)
                 for rule in RULES:
                     if rule.pattern.search(as_cmd):
                         out.append(
